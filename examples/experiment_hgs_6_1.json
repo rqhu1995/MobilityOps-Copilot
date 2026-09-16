@@ -1,0 +1,74 @@
+{
+  "format": "experiment_plan_v1",
+  "baseline": {
+    "case_id": "baseline",
+    "scenario": {
+      "scenario_name": "6_1 baseline",
+      "instance_id": 1,
+      "number_of_stations": 6,
+      "number_of_trucks": 1,
+      "number_of_repairers": 1,
+      "truck_capacity": 25,
+      "operation_time_budget_sec": 7200.0,
+      "solver_runtime_limit_sec": 5.0,
+      "loading_time_sec": 60,
+      "repair_time_sec": 300,
+      "broken_bike_proportion": null,
+      "seed": null,
+      "objective_profile": "eudf_default",
+      "solution_requirement": "fast_feasible"
+    },
+    "backend": "hgs",
+    "repetitions": 3,
+    "external_timeout_sec": 10.0
+  },
+  "variants": [
+    {
+      "case_id": "capacity30",
+      "scenario": {
+        "scenario_name": "6_1 capacity 30",
+        "instance_id": 1,
+        "number_of_stations": 6,
+        "number_of_trucks": 1,
+        "number_of_repairers": 1,
+        "truck_capacity": 30,
+        "operation_time_budget_sec": 7200.0,
+        "solver_runtime_limit_sec": 5.0,
+        "loading_time_sec": 60,
+        "repair_time_sec": 300,
+        "broken_bike_proportion": null,
+        "seed": null,
+        "objective_profile": "eudf_default",
+        "solution_requirement": "fast_feasible"
+      },
+      "backend": "hgs",
+      "repetitions": 3,
+      "external_timeout_sec": 10.0
+    },
+    {
+      "case_id": "two_trucks",
+      "scenario": {
+        "scenario_name": "6_1 two trucks",
+        "instance_id": 1,
+        "number_of_stations": 6,
+        "number_of_trucks": 2,
+        "number_of_repairers": 1,
+        "truck_capacity": 25,
+        "operation_time_budget_sec": 7200.0,
+        "solver_runtime_limit_sec": 5.0,
+        "loading_time_sec": 60,
+        "repair_time_sec": 300,
+        "broken_bike_proportion": null,
+        "seed": null,
+        "objective_profile": "eudf_default",
+        "solution_requirement": "fast_feasible"
+      },
+      "backend": "hgs",
+      "repetitions": 3,
+      "external_timeout_sec": 10.0
+    }
+  ],
+  "max_calls": 9,
+  "external_wait_budget_sec": 90.0,
+  "failure_policy": "continue"
+}

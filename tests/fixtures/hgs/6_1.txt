@@ -1,0 +1,32 @@
+the best solution is: 
+individual's fitness value: 104.039
+individual's dissat value: 51.7808
+individual's emission value: 7.94776
+individual's trkRoute: 1695.5
+individual's rpmRoute: 500.64
+individual's trkOperationTime: 4800
+individual's rpmOperationTime: 1500
+the repositioning scheme for truck is: 
+=======
+0	load 16 usable bikes;load 0 broken bikes;unload 0 usable bikes;unload 0 broken bikes
+2	load 3 usable bikes;load 5 broken bikes;unload 0 usable bikes;unload 0 broken bikes
+1	load 0 usable bikes;load 1 broken bikes;unload 8 usable bikes;unload 0 broken bikes
+3	load 0 usable bikes;load 0 broken bikes;unload 10 usable bikes;unload 0 broken bikes
+6	load 0 usable bikes;load 0 broken bikes;unload 1 usable bikes;unload 0 broken bikes
+5	load 2 usable bikes;load 3 broken bikes;unload 0 usable bikes;unload 0 broken bikes
+4	load 4 usable bikes;load 6 broken bikes;unload 0 usable bikes;unload 0 broken bikes
+0	load 0 usable bikes;load 0 broken bikes;unload 6 usable bikes;unload 15 broken bikes
+the repositioning scheme for repairman is: 
+=======
+0	repair 0 bikes
+3	repair 5 bikes
+0	repair 0 bikes
+
+CPU time: 1.09077
+dissat at each station
+dissat[1] = 4.96223
+dissat[2] = 0.033158
+dissat[3] = 4.86577
+dissat[4] = 11.1033
+dissat[5] = 17.7339
+dissat[6] = 13.0825

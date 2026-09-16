@@ -2,8 +2,20 @@
 
 from enum import StrEnum
 from pathlib import Path
+import re
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
+
+
+def validate_run_id(value: str) -> str:
+    """Require one safe path component, without normalizing user input."""
+
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", value):
+        raise ValueError(
+            "run_id must start with an ASCII letter or digit and contain only "
+            "A-Z, a-z, 0-9, '.', '_', '-'; maximum 200 characters"
+        )
+    return value
 
 
 class BackendName(StrEnum):
@@ -114,6 +126,11 @@ class SolutionResult(BaseModel):
     warnings: tuple[str, ...] = ()
     raw_artifact_paths: dict[str, Path] = Field(default_factory=dict)
     solver_metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @field_validator("run_id", mode="before")
+    @classmethod
+    def require_safe_run_id(cls, value: str) -> str:
+        return validate_run_id(value)
 
     @model_validator(mode="after")
     def validate_terminal_feasibility(self) -> "SolutionResult":

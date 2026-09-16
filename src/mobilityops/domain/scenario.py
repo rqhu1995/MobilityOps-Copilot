@@ -9,6 +9,7 @@ class ObjectiveProfile(StrEnum):
     """Objective formulations accepted by the current domain contract."""
 
     EUDF_DEFAULT = "eudf_default"
+    GUROBI_LINEAR_DEFAULT = "gurobi_linear_default"
 
 
 class SolutionRequirement(StrEnum):
@@ -19,10 +20,10 @@ class SolutionRequirement(StrEnum):
 
 
 class ScenarioSpec(BaseModel):
-    """A small deterministic scenario contract aligned with HGS problem inputs.
+    """A deterministic scenario contract with explicit backend objective profiles.
 
     Backend-specific genetic algorithm tuning remains outside this domain model.
-    See ``docs/solver-contract.md`` for the exact HGS CLI mapping.
+    See the HGS and Gurobi adapter contracts for exact mappings and differences.
     """
 
     model_config = ConfigDict(
@@ -72,7 +73,7 @@ class ScenarioSpec(BaseModel):
         gt=0,
         allow_inf_nan=False,
         strict=True,
-        description="Internal HGS search limit in seconds mapped to HGS -tl.",
+        description="Requested solver search limit in seconds; enforced by the selected adapter.",
     )
     loading_time_sec: int = Field(
         gt=0,
@@ -102,11 +103,11 @@ class ScenarioSpec(BaseModel):
         strict=True,
         description=(
             "Optional 32-bit orchestration seed; the current HGS CLI cannot "
-            "accept it and must report that capability constraint."
+            "accept it; the first Gurobi adapter also rejects explicit seed requests."
         ),
     )
     objective_profile: ObjectiveProfile = Field(
-        description="Objective formulation; currently only eudf_default is valid."
+        description="Explicit formulation: HGS eudf_default or Gurobi gurobi_linear_default."
     )
     solution_requirement: SolutionRequirement = Field(
         description="Requested outcome policy used by orchestration."

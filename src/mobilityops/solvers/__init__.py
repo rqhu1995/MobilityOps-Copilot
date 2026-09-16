@@ -7,9 +7,11 @@ from mobilityops.solvers.contracts import (
     ConstraintRecord,
     SolverBackend,
 )
+from mobilityops.solvers.gurobi.contracts import GUROBI_CAPABILITY
 
 __all__ = [
     "HGS_CAPABILITY",
+    "GUROBI_CAPABILITY",
     "BackendCapability",
     "ConstraintOutcome",
     "ConstraintRecord",

@@ -1,0 +1,14 @@
+{
+  "scenario_name": "gurobi-smoke-6-1",
+  "instance_id": 1,
+  "number_of_stations": 6,
+  "number_of_trucks": 1,
+  "number_of_repairers": 1,
+  "truck_capacity": 25,
+  "operation_time_budget_sec": 7200.0,
+  "solver_runtime_limit_sec": 5.0,
+  "loading_time_sec": 60,
+  "repair_time_sec": 300,
+  "objective_profile": "gurobi_linear_default",
+  "solution_requirement": "best_available"
+}

@@ -83,7 +83,7 @@ HGS_CAPABILITY = BackendCapability(
 
 @runtime_checkable
 class SolverBackend(Protocol):
-    """Interface implemented later by concrete, side-effecting adapters."""
+    """Interface for concrete, side-effecting HGS and Gurobi adapters."""
 
     @property
     def capability(self) -> BackendCapability:
@@ -95,6 +95,11 @@ class SolverBackend(Protocol):
         self, scenario: ScenarioSpec
     ) -> tuple[ConstraintRecord, ...]:
         """Assess a scenario without running the solver."""
+
+        ...
+
+    def preflight(self, scenario: ScenarioSpec, *, run_id: str) -> float:
+        """Check local files without execution and return the external timeout."""
 
         ...
 

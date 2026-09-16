@@ -1,0 +1,2 @@
+# Preserve native HGS text: trailing spaces and seven '=' route delimiters are data.
+tests/fixtures/hgs/*.txt whitespace=-blank-at-eol conflict-marker-size=32
