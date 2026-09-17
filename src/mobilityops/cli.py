@@ -17,6 +17,7 @@ from mobilityops.services.gemini_intake import GeminiBudgetConfig
 from mobilityops.services.decision_terminal_session import DecisionTerminalSession
 from mobilityops.services.experiment_terminal_session import ExperimentTerminalSession
 from mobilityops.services.gurobi_inputs import strict_json
+from mobilityops.services.next_experiment_terminal_session import NextExperimentTerminalSession
 from mobilityops.services.solver_service import SolverService
 from mobilityops.services.terminal_session import TerminalSession, terminal_text
 from mobilityops.solvers.gurobi.backend import GurobiBackend
@@ -34,9 +35,15 @@ class Console:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="MobilityOps 终端交互：需求 → 澄清 → 审阅 → 明确确认 → 报告。")
     result.add_argument("--baseline", type=Path, help="显式基准 ScenarioSpec JSON；省略则逐项澄清")
-    result.add_argument("--mode", choices=("scenario", "experiment", "analysis"), default="scenario",
-                        help="scenario=单场景（默认）；experiment=有限重复实验计划；analysis=离线证据审阅")
+    result.add_argument(
+        "--mode",
+        choices=("scenario", "experiment", "analysis", "next-experiment"),
+        default="scenario",
+        help=("scenario=单场景（默认）；experiment=有限重复实验计划；"
+              "analysis=离线证据审阅；next-experiment=接管阶段 10 候选"),
+    )
     result.add_argument("--experiment-id", help="analysis 模式要重新复核的实验 ID")
+    result.add_argument("--proposal", type=Path, help="next-experiment 模式的阶段 10 候选 JSON")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
     result.add_argument("--budget-hkd", type=float, default=1, help="本会话 LLM 费用上限，0 < x ≤ 10（默认 1 HKD）")
     result.add_argument("--max-calls", type=int, default=3, help="本会话最多提取次数，1–6（默认 3）")
@@ -65,8 +72,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.mode == "analysis":
             if not args.experiment_id:
                 raise ValueError("analysis 模式需要 --experiment-id")
-            if args.baseline or args.backend or args.gurobi_python or args.gurobi_time_interval_sec is not None or args.gurobi_threads is not None:
-                raise ValueError("analysis 模式只读取既有实验；不要提供 baseline、backend 或 solver 配置")
+            if (args.baseline or args.proposal or args.backend or args.gurobi_python
+                    or args.gurobi_time_interval_sec is not None or args.gurobi_threads is not None):
+                raise ValueError("analysis 模式只读取既有实验；不要提供 proposal、baseline、backend 或 solver 配置")
             runs_dir = Path(environment["MOBILITYOPS_RUNS_DIR"]).expanduser() if environment.get(
                 "MOBILITYOPS_RUNS_DIR"
             ) else Path.cwd() / "runs"
@@ -80,8 +88,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                 settings, io=Console(), session_id=session_id,
                 experiment_id=args.experiment_id,
             ).run()
-        if args.experiment_id:
-            raise ValueError("--experiment-id 只用于 analysis 模式")
+        if args.mode == "next-experiment":
+            if args.proposal is None:
+                raise ValueError("next-experiment 模式需要 --proposal")
+            if args.experiment_id or args.baseline or args.backend:
+                raise ValueError(
+                    "next-experiment 模式从候选读取计划；不要提供 experiment-id、baseline 或 backend"
+                )
+            settings = Settings.from_env(environment)
+            if args.gurobi_python is None and (
+                    args.gurobi_time_interval_sec is not None or args.gurobi_threads is not None):
+                raise ValueError("请用 --gurobi-python 显式注册候选需要的 Gurobi adapter")
+            gurobi = None
+            if args.gurobi_python is not None:
+                gurobi = GurobiBackend(settings, options=GurobiOptions(
+                    python_executable=args.gurobi_python.expanduser(),
+                    time_interval_sec=(args.gurobi_time_interval_sec
+                                       if args.gurobi_time_interval_sec is not None else 600),
+                    threads=args.gurobi_threads if args.gurobi_threads is not None else 1,
+                ))
+            session_id = args.session_id or f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
+            return NextExperimentTerminalSession(
+                SolverService(settings, gurobi_backend=gurobi), io=Console(),
+                session_id=session_id, proposal_path=args.proposal,
+            ).run()
+        if args.experiment_id or args.proposal:
+            raise ValueError("--experiment-id 只用于 analysis；--proposal 只用于 next-experiment")
         settings = Settings.from_env(environment)
         budget = GeminiBudgetConfig(budget_hkd=args.budget_hkd, max_calls=args.max_calls)
         if budget.reservation_hkd > Decimal(str(budget.budget_hkd)):

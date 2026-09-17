@@ -55,7 +55,8 @@
 无复核候选、多模型/输入签名或跨 backend 时，服务返回 `plan=null` 和明确 blocker，
 不会拼接跨模型统一评分，也不会凭空推荐参数。所有非空候选都有
 `auto_execute=false` 和 `requires_new_review_and_confirmation=true`；后续仍须走全计划能力
-检查、运行预检查、预算审阅和新的明确确认。
+检查、运行预检查、预算审阅和新的明确确认。该连接已由
+[阶段 11 接管入口](confirmed-next-experiments.md)实现；候选文件本身仍不构成执行授权。
 
 ## 离线验收范围
 

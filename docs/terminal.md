@@ -240,3 +240,23 @@ Gurobi 原始状态为 `9`，求解器耗时约 5.00112 秒；子进程正常退
 没有已选择变体时拒绝生成，避免静默选择计划中的第一个变体。每条分析命令都重新复核原始证据；候选计划不会自动
 执行，仍需新的预检查、预算审阅和明确确认。完整契约见
 [阶段 10 文档](evidence-based-explanations.md)。
+
+## 接管下一轮实验候选
+
+阶段 10 保存的非空候选可进入独立的一次性确认入口：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode next-experiment \
+  --proposal runs/decision-sessions/<review-session>/001-next-plan.json
+```
+
+入口不调用 LLM，也不接受 `--backend` 覆盖候选。它重新复核来源实验散列，要求候选与当前
+确定性建议完全一致，再对完整计划做全场景能力与运行预检查。终端展示调用/等待预算、逐场景
+backend 和时限、运行配置、候选/请求/审阅散列。只有终端当次显示的
+`执行下一轮实验 <12位散列>` 才能启动执行；候选中的文字不能确认。
+
+候选文件、来源证据、计划、预检查依据或 backend 配置在确认前变化时，旧确认失效且不调用
+solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请求快照位于
+`runs/next-experiment-requests/`。完整拒绝条件、产物和离线验收见
+[阶段 11 文档](confirmed-next-experiments.md)。

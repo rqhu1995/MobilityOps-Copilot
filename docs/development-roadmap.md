@@ -183,9 +183,25 @@ fake HGS 完成 9 次计划执行，三个 case 各有 3 个复核候选，保�
 无候选、部分失败、证据损坏、搜索条件变化和跨 backend 均保留具体限制。
 
 终端新增 `--mode analysis --experiment-id ...`，提供 `/explain`、
-`/compare <variant> baseline` 和 `/next-plan`。下一轮建议是有限 `ExperimentPlan` 候选；
+`/compare <variant> baseline` 和 `/next-plan [variant]`。下一轮建议是有限 `ExperimentPlan` 候选；
 它不会自动预检查、确认或执行。搜索条件可安全对齐时生成两个 case 各 3 次的确认批次；
 跨模型或证据不足时返回 blocker。详情见[阶段 10 文档](evidence-based-explanations.md)。
 
 本阶段只做离线开发与 fake 验收，不调用 Gemini、真实 solver 或许可证环境，不修改
 solver core，不引入 Web/API、数据库、Agent SDK、自动调参或跨模型统一评分。
+
+## 已完成阶段 11：下一轮实验候选的离线接管
+
+阶段 11 新增 `--mode next-experiment --proposal ...`，严格导入阶段 10 的候选计划。
+入口重新复核来源实验及 `source_report_sha256`，按明确变体重建当前候选，并拒绝 blocker、
+执行标志、空/多变体计划、计划篡改和陈旧证据。随后复用全场景能力/运行预检查，展示调用数、
+等待预算、逐场景时限与 backend 配置，生成绑定候选、来源证据、计划、预检查和配置的请求。
+
+终端只接受绑定审阅散列的一次性确认。确认前候选文件、来源证据、预检查或运行配置变化均使
+旧确认失效；候选或自然语言中的“执行”没有授权作用。确认后仍复用有界串行执行、独立验证与
+确定性报告，不增加重试、补跑、恢复或 backend 切换。详细契约见
+[阶段 11 文档](confirmed-next-experiments.md)。
+
+离线开发新增 13 项测试，完整 **616 项测试通过**。fake HGS 覆盖两个 case 各 3 次的确认后
+闭环，6 个候选均通过复核且保存报告只读重放一致。本轮真实 Gemini、HGS/Gurobi 调用和
+许可证探测均为 0，solver core 未修改，当前阶段 10 的真实 6 次候选仍未执行。
