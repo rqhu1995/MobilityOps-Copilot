@@ -224,3 +224,17 @@ Gurobi 原始状态为 `9`，求解器耗时约 5.00112 秒；子进程正常退
 自动重试或批次调度。输入/响应保存在本地，避免在需求中粘贴凭据。
 候选合法不保证自然语言理解正确；请审阅每个字段和模型边界。单次求解不证明
 最优性或资源变化的因果效应。
+
+## 离线结果审阅模式
+
+已有重复实验可用独立的只读入口重新解释：
+
+```bash
+.venv/bin/python -m mobilityops --mode analysis --experiment-id <experiment-id>
+```
+
+该模式不需要 `--baseline`、`--backend`、LLM 预算或 solver 配置。`/explain` 展示完整
+实验的三类结论，`/compare <variant-case-id> baseline` 聚焦一个变体，`/next-plan`
+保存有界候选计划，`/quit` 退出。每条分析命令都重新复核原始证据；候选计划不会自动
+执行，仍需新的预检查、预算审阅和明确确认。完整契约见
+[阶段 10 文档](evidence-based-explanations.md)。

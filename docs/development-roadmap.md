@@ -174,3 +174,18 @@ fake HGS 完成 9 次计划执行，三个 case 各有 3 个复核候选，保�
 无重试或补跑。9 次均成功且通过独立重放复核，批次实际耗时约 12.374 秒。模型预留
 0.21888 HKD，usage 估算 0.119862 HKD。报告只读重放完全一致，296 个证据文件散列和
 两个 solver 仓库保持不变；没有 Gurobi 调用或许可证探测。
+
+## 当前阶段 10：证据绑定的结果解释与下一轮实验建议
+
+阶段 10 新增确定性的 `DecisionExplanationService`。它不信任保存报告中的摘要，每次先
+重放 `ExperimentReportService.analyze()`，再把输出严格拆成已复核事实、本批描述性观察和
+不能得出的结论。只有同模型、同输入签名、同搜索条件且两侧都有复核候选时才显示中位数差；
+无候选、部分失败、证据损坏、搜索条件变化和跨 backend 均保留具体限制。
+
+终端新增 `--mode analysis --experiment-id ...`，提供 `/explain`、
+`/compare <variant> baseline` 和 `/next-plan`。下一轮建议是有限 `ExperimentPlan` 候选；
+它不会自动预检查、确认或执行。搜索条件可安全对齐时生成两个 case 各 3 次的确认批次；
+跨模型或证据不足时返回 blocker。详情见[阶段 10 文档](evidence-based-explanations.md)。
+
+本阶段只做离线开发与 fake 验收，不调用 Gemini、真实 solver 或许可证环境，不修改
+solver core，不引入 Web/API、数据库、Agent SDK、自动调参或跨模型统一评分。

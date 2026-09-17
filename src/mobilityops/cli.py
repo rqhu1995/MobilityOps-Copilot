@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from mobilityops.config import Settings
 from mobilityops.domain import BackendName, ScenarioSpec
 from mobilityops.services.gemini_intake import GeminiBudgetConfig
+from mobilityops.services.decision_terminal_session import DecisionTerminalSession
 from mobilityops.services.experiment_terminal_session import ExperimentTerminalSession
 from mobilityops.services.gurobi_inputs import strict_json
 from mobilityops.services.solver_service import SolverService
@@ -33,8 +34,9 @@ class Console:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="MobilityOps 终端交互：需求 → 澄清 → 审阅 → 明确确认 → 报告。")
     result.add_argument("--baseline", type=Path, help="显式基准 ScenarioSpec JSON；省略则逐项澄清")
-    result.add_argument("--mode", choices=("scenario", "experiment"), default="scenario",
-                        help="scenario=单场景（默认）；experiment=有限重复实验计划")
+    result.add_argument("--mode", choices=("scenario", "experiment", "analysis"), default="scenario",
+                        help="scenario=单场景（默认）；experiment=有限重复实验计划；analysis=离线证据审阅")
+    result.add_argument("--experiment-id", help="analysis 模式要重新复核的实验 ID")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
     result.add_argument("--budget-hkd", type=float, default=1, help="本会话 LLM 费用上限，0 < x ≤ 10（默认 1 HKD）")
     result.add_argument("--max-calls", type=int, default=3, help="本会话最多提取次数，1–6（默认 3）")
@@ -61,6 +63,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             if value is not None:
                 environment[key] = str(value)
         settings = Settings.from_env(environment)
+        if args.mode == "analysis":
+            if not args.experiment_id:
+                raise ValueError("analysis 模式需要 --experiment-id")
+            if args.baseline or args.backend or args.gurobi_python or args.gurobi_time_interval_sec is not None or args.gurobi_threads is not None:
+                raise ValueError("analysis 模式只读取既有实验；不要提供 baseline、backend 或 solver 配置")
+            session_id = args.session_id or f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
+            return DecisionTerminalSession(
+                settings, io=Console(), session_id=session_id,
+                experiment_id=args.experiment_id,
+            ).run()
+        if args.experiment_id:
+            raise ValueError("--experiment-id 只用于 analysis 模式")
         budget = GeminiBudgetConfig(budget_hkd=args.budget_hkd, max_calls=args.max_calls)
         if budget.reservation_hkd > Decimal(str(budget.budget_hkd)):
             raise ValueError(f"预算至少需要 {budget.reservation_hkd} HKD 才能预留一次提取")
