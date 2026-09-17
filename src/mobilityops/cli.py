@@ -3,6 +3,7 @@
 import argparse
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from decimal import Decimal
 import os
 from pathlib import Path
 import sys
@@ -13,6 +14,7 @@ from pydantic import ValidationError
 from mobilityops.config import Settings
 from mobilityops.domain import BackendName, ScenarioSpec
 from mobilityops.services.gemini_intake import GeminiBudgetConfig
+from mobilityops.services.experiment_terminal_session import ExperimentTerminalSession
 from mobilityops.services.gurobi_inputs import strict_json
 from mobilityops.services.solver_service import SolverService
 from mobilityops.services.terminal_session import TerminalSession, terminal_text
@@ -31,6 +33,8 @@ class Console:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="MobilityOps 终端交互：需求 → 澄清 → 审阅 → 明确确认 → 报告。")
     result.add_argument("--baseline", type=Path, help="显式基准 ScenarioSpec JSON；省略则逐项澄清")
+    result.add_argument("--mode", choices=("scenario", "experiment"), default="scenario",
+                        help="scenario=单场景（默认）；experiment=有限重复实验计划")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
     result.add_argument("--budget-hkd", type=float, default=1, help="本会话 LLM 费用上限，0 < x ≤ 10（默认 1 HKD）")
     result.add_argument("--max-calls", type=int, default=3, help="本会话最多提取次数，1–6（默认 3）")
@@ -58,7 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 environment[key] = str(value)
         settings = Settings.from_env(environment)
         budget = GeminiBudgetConfig(budget_hkd=args.budget_hkd, max_calls=args.max_calls)
-        if budget.reservation_hkd > budget.budget_hkd:
+        if budget.reservation_hkd > Decimal(str(budget.budget_hkd)):
             raise ValueError(f"预算至少需要 {budget.reservation_hkd} HKD 才能预留一次提取")
         context = ScenarioSpec.model_validate(strict_json(args.baseline.read_bytes())) if args.baseline else None
         if args.gurobi_python is None and (
@@ -74,9 +78,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             gurobi = GurobiBackend(settings, options=options)
         session_id = args.session_id or f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
-        return TerminalSession(SolverService(settings, gurobi_backend=gurobi), io=Console(), session_id=session_id,
-                               budget=budget, context=context,
-                               backend=BackendName(args.backend) if args.backend else None).run()
+        session_type = ExperimentTerminalSession if args.mode == "experiment" else TerminalSession
+        return session_type(SolverService(settings, gurobi_backend=gurobi), io=Console(), session_id=session_id,
+                            budget=budget, context=context,
+                            backend=BackendName(args.backend) if args.backend else None).run()
     except ValidationError as exc:
         print("配置校验失败：" + terminal_text(str(exc.errors(include_input=False, include_url=False))), file=sys.stderr)
     except (ValueError, OSError) as exc:

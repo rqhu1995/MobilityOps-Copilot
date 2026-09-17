@@ -1,5 +1,9 @@
 # 阶段 6：受控重复实验与可读报告
 
+阶段 9 已在本服务上增加[自然语言实验计划与终端确认层](natural-language-experiments.md)。
+底层 `ExperimentPlan`、预检查、串行执行、独立复核和报告语义保持不变；自然语言入口额外
+要求预算覆盖全部预定调用，并把完整预检查和 backend 运行配置绑定到执行请求。
+
 阶段 6 在现有 Python application service 上实现以下闭环：
 
 ```text

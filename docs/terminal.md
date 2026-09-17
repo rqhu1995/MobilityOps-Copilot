@@ -1,5 +1,9 @@
 # 阶段 8：终端交互入口
 
+阶段 9 新增批次入口：在相同命令中加入 `--mode experiment`，即可使用
+[自然语言实验计划流程](natural-language-experiments.md)。默认 `--mode scenario` 保持本页的
+单场景行为；两种模式使用独立会话、预算和确认契约，不能用单场景确认启动实验计划。
+
 在终端完成：**输入需求 → 澄清 → 审阅场景和预算 → 明确确认 → 单次求解与报告**。
 入口复用阶段 7 的 `ScenarioIntakeService`、Gemini REST 接入和现有实验/报告服务，
 使用标准库，不新增依赖。默认注册 HGS；通过 `--gurobi-python` 显式配置后也注册 Gurobi。

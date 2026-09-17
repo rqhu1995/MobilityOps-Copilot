@@ -45,7 +45,7 @@ class LanguageInput(AnalysisModel):
 
 
 class Clarification(AnalysisModel):
-    kind: Literal["missing", "invalid", "ambiguous", "unsupported", "provenance"]
+    kind: Literal["missing", "invalid", "ambiguous", "unsupported", "provenance", "conflict"]
     field: str | None
     question: str
 
