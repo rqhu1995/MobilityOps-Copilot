@@ -29,12 +29,15 @@
   --experiment-id terminal-experiment-stage9-real-acceptance-20260916-v1
 ```
 
+从仓库根目录启动时，analysis 模式默认读取 `./runs`，不要求 HGS/Gurobi 仓库环境变量。
+从其他目录启动时使用 `--runs-dir /home/runqiu/MobilityOps-Copilot/runs` 明确指定绝对路径。
+
 可用命令：
 
 ```text
 /explain
 /compare capacity30 baseline
-/next-plan
+/next-plan [variant-case-id]
 /quit
 ```
 
@@ -43,7 +46,8 @@
 
 ## 下一轮候选计划
 
-`/next-plan` 生成 `NextExperimentProposal`，不会执行。若当前差异可比，它选择一个变体，
+`/next-plan` 生成 `NextExperimentProposal`，不会执行。终端默认绑定最近一次 `/compare`
+的变体，也可用 `/next-plan two_trucks` 显式指定；没有选择时拒绝生成，避免静默采用第一个变体。若当前差异可比，它选择该变体，
 构造基准和变体各 3 次的确认批次，并把调用上限和等待预算设为计划所需的精确上限。
 若唯一问题是搜索条件变化，它先把变体的运行时限、solution policy、seed、外部 timeout
 和 backend 要求与基准对齐，同时保留真正的场景变化。
@@ -55,7 +59,7 @@
 
 ## 离线验收范围
 
-阶段 10 新增 9 项测试，覆盖同口径说明、单变体筛选、候选计划预算、搜索条件对齐、
+阶段 10 新增 11 项测试，覆盖同口径说明、单变体筛选、候选计划预算、最近比较绑定、搜索条件对齐、
 无候选、跨 backend 不可比、终端三条命令和 CLI 分流。测试使用 fake executable 与
 fake Python 子进程；解释阶段对 `subprocess.run` 设置失败哨兵，证明建议生成没有启动
 solver。没有真实 Gemini、HGS/Gurobi 调用或许可证探测，也没有修改 solver core。

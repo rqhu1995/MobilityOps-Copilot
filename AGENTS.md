@@ -6,7 +6,7 @@
 
 ## 当前状态与工作范围
 
-阶段 3（HGS 集成）、阶段 4A（Gurobi 集成前审计）、阶段 4B（Gurobi 集成）、阶段 5（显式能力选择与情景分析）、阶段 6（受控重复实验与可读报告）、阶段 7（自然语言需求到显式执行请求）、阶段 8（HGS/Gurobi 终端交互）、阶段 9（自然语言实验计划）及阶段 10（证据绑定的结果解释与下一轮实验建议）均已完成。最新完整开发验收为 2026-09-17：601 项测试通过；单场景两套 backend 和 HGS 自然语言重复实验的终端完整执行链路均已有真实验收证据。阶段 6 的 9 次 HGS 重复实验与 3 个历史 Gurobi 终态重放、阶段 5 的 3 次真实求解和 12 个历史重放继续作为历史基线。
+阶段 3（HGS 集成）、阶段 4A（Gurobi 集成前审计）、阶段 4B（Gurobi 集成）、阶段 5（显式能力选择与情景分析）、阶段 6（受控重复实验与可读报告）、阶段 7（自然语言需求到显式执行请求）、阶段 8（HGS/Gurobi 终端交互）、阶段 9（自然语言实验计划）及阶段 10（证据绑定的结果解释与下一轮实验建议）均已完成。最新完整开发验收为 2026-09-17：603 项测试通过；单场景两套 backend 和 HGS 自然语言重复实验的终端完整执行链路均已有真实验收证据。阶段 6 的 9 次 HGS 重复实验与 3 个历史 Gurobi 终态重放、阶段 5 的 3 次真实求解和 12 个历史重放继续作为历史基线。
 
 当前已实现 `SolverService.assess()`、`select()`、`preflight()`、`solve_selected()`、`ScenarioAnalysisService.observe()` / `compare()`，以及 `ExperimentService.precheck()` / `execute()` 和 `ExperimentReportService.analyze()` / `write_report()`。阶段 6 调用约定、统计分母和验收见 [重复实验文档](docs/experiments.md)。接口及验收范围见 [阶段 5 文档](docs/scenario-analysis.md)，Gurobi 模型差异和接入约定见 [集成审计](docs/gurobi-integration-audit.md)及 [adapter 文档](docs/gurobi-adapter.md)。本地产物在被忽略的 `runs/` 下，不作为普通测试的必需依赖。
 
@@ -18,7 +18,7 @@
 
 2026-09-16 用户随后明确确认 [阶段 9 真实验收计划](docs/natural-language-experiments.md#真实验收计划与完成记录)。会话 `stage9-real-acceptance-20260916-v1` 调用 Gemini `gemini-3.8-flash` 1 次，预留 0.21888 HKD、usage 估算 0.119862 HKD；草稿准确重建 baseline、capacity30、two_trucks 三个 HGS 场景。全计划预检查通过后串行执行 9 次 HGS，内部/外部时限 5/10 秒、等待预算 90 秒、无重试或补跑；9 次均 `succeeded`，9 个候选全部重新复核通过。批次实际耗时约 12.374 秒，三个 case 各 `n=3`；容量 30 和两车方案相对基准的 objective 中位数观测差均为 0.002，不满意度差为 0，排放差为 0.03884。这些仅是本批描述性观测。保存报告只读重放完全一致，296 个证据文件的聚合散列未变化，两个 solver 仓库保持不变；本次 Gurobi 调用与许可证探测均为 0，不授权自动重跑或额外批次。
 
-2026-09-17 用户要求启动阶段 10：每次从原始实验及运行证据重新复核后，将结果分成已验证事实、本批描述性观察和不能得出的结论；终端提供 `/explain`、`/compare <variant> baseline` 与 `/next-plan`。下一轮建议只生成绑定当前重放报告的有限 `ExperimentPlan` 候选，`auto_execute=false`，仍需新的全计划预检查、预算审阅和明确确认。跨 backend、无候选、多模型/输入签名或损坏证据不生成统一差值或候选计划。本阶段完成 9 项新增离线测试，完整 601 项测试通过；真实 Gemini、HGS/Gurobi 调用和许可证探测均为 0，两个 solver 仓库未修改。范围与使用见 [阶段 10 文档](docs/evidence-based-explanations.md)。
+2026-09-17 用户要求启动阶段 10：每次从原始实验及运行证据重新复核后，将结果分成已验证事实、本批描述性观察和不能得出的结论；终端提供 `/explain`、`/compare <variant> baseline` 与 `/next-plan [variant]`。下一轮建议只生成绑定当前重放报告及最近比较或显式指定变体的有限 `ExperimentPlan` 候选，`auto_execute=false`，仍需新的全计划预检查、预算审阅和明确确认；没有选择变体时拒绝生成。跨 backend、无候选、多模型/输入签名或损坏证据不生成统一差值或候选计划。本阶段完成 11 项新增离线测试，完整 603 项测试通过；analysis 模式从仓库根目录默认读取 `./runs`，不要求 solver 仓库环境变量。真实 Gemini、HGS/Gurobi 调用和许可证探测均为 0，两个 solver 仓库未修改。范围与使用见 [阶段 10 文档](docs/evidence-based-explanations.md)。
 
 继续允许维护和修复现有 adapter、输入验证、能力评估、选择、受控执行、证据复核和情景分析。保持简单的 Python application service；可按实际职责拆分模块，不以“最小”为由省略必要的错误处理、证据保存或验证。
 

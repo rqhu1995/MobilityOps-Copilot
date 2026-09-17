@@ -233,8 +233,10 @@ Gurobi 原始状态为 `9`，求解器耗时约 5.00112 秒；子进程正常退
 .venv/bin/python -m mobilityops --mode analysis --experiment-id <experiment-id>
 ```
 
-该模式不需要 `--baseline`、`--backend`、LLM 预算或 solver 配置。`/explain` 展示完整
-实验的三类结论，`/compare <variant-case-id> baseline` 聚焦一个变体，`/next-plan`
-保存有界候选计划，`/quit` 退出。每条分析命令都重新复核原始证据；候选计划不会自动
+从仓库根目录启动时默认读取 `./runs`；从其他目录启动时用 `--runs-dir` 指定绝对路径。
+该模式不要求 HGS/Gurobi 路径，也不需要 `--baseline`、`--backend`、LLM 预算或 solver 配置。`/explain` 展示完整
+实验的三类结论，`/compare <variant-case-id> baseline` 聚焦一个变体，
+`/next-plan [variant-case-id]` 为最近比较或显式指定的变体保存有界候选计划，`/quit` 退出。
+没有已选择变体时拒绝生成，避免静默选择计划中的第一个变体。每条分析命令都重新复核原始证据；候选计划不会自动
 执行，仍需新的预检查、预算审阅和明确确认。完整契约见
 [阶段 10 文档](evidence-based-explanations.md)。

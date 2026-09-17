@@ -45,10 +45,13 @@ class DecisionExplanationService:
                 raise ValueError(f"Unknown variant case: {variant_case_id}")
         return explain_report(report, variant_case_id=variant_case_id)
 
-    def next_plan(self, experiment_id: str) -> NextExperimentProposal:
+    def next_plan(self, experiment_id: str, *,
+                  variant_case_id: str | None = None) -> NextExperimentProposal:
         validate_run_id(experiment_id)
+        if variant_case_id is not None:
+            validate_run_id(variant_case_id)
         report = self.reports.analyze(experiment_id)
-        return propose_next_plan(report)
+        return propose_next_plan(report, variant_case_id=variant_case_id)
 
 
 def explain_report(report: ExperimentReport, *, variant_case_id: str | None = None) -> DecisionExplanation:
@@ -130,13 +133,22 @@ def explain_report(report: ExperimentReport, *, variant_case_id: str | None = No
     )
 
 
-def propose_next_plan(report: ExperimentReport) -> NextExperimentProposal:
+def propose_next_plan(report: ExperimentReport, *,
+                      variant_case_id: str | None = None) -> NextExperimentProposal:
     digest = report_fingerprint(report)
     plan = report.batch.plan
     if not plan.variants:
         return _blocked(report, digest, "当前实验没有变体，无法构造基准与变体的后续比较。")
-    comparison = next((item for item in report.comparisons if item.kind != "scenario_observations"
-                       or item.reasons), report.comparisons[0])
+    if variant_case_id is not None:
+        comparison = next(
+            (item for item in report.comparisons if item.variant_case_id == variant_case_id),
+            None,
+        )
+        if comparison is None:
+            raise ValueError(f"Unknown variant case: {variant_case_id}")
+    else:
+        comparison = next((item for item in report.comparisons if item.kind != "scenario_observations"
+                           or item.reasons), report.comparisons[0])
     variant = next(case for case in plan.variants if case.case_id == comparison.variant_case_id)
     baseline = plan.baseline
     rationale: list[str] = []

@@ -62,12 +62,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                            ("MOBILITYOPS_RUNS_DIR", args.runs_dir)):
             if value is not None:
                 environment[key] = str(value)
-        settings = Settings.from_env(environment)
         if args.mode == "analysis":
             if not args.experiment_id:
                 raise ValueError("analysis 模式需要 --experiment-id")
             if args.baseline or args.backend or args.gurobi_python or args.gurobi_time_interval_sec is not None or args.gurobi_threads is not None:
                 raise ValueError("analysis 模式只读取既有实验；不要提供 baseline、backend 或 solver 配置")
+            runs_dir = Path(environment["MOBILITYOPS_RUNS_DIR"]).expanduser() if environment.get(
+                "MOBILITYOPS_RUNS_DIR"
+            ) else Path.cwd() / "runs"
+            settings = Settings(
+                hgs_repo_path=runs_dir / ".analysis-only/hgs-unused",
+                gurobi_repo_path=runs_dir / ".analysis-only/gurobi-unused",
+                runs_dir=runs_dir,
+            )
             session_id = args.session_id or f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
             return DecisionTerminalSession(
                 settings, io=Console(), session_id=session_id,
@@ -75,6 +82,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ).run()
         if args.experiment_id:
             raise ValueError("--experiment-id 只用于 analysis 模式")
+        settings = Settings.from_env(environment)
         budget = GeminiBudgetConfig(budget_hkd=args.budget_hkd, max_calls=args.max_calls)
         if budget.reservation_hkd > Decimal(str(budget.budget_hkd)):
             raise ValueError(f"预算至少需要 {budget.reservation_hkd} HKD 才能预留一次提取")

@@ -84,6 +84,10 @@ def test_compare_filters_one_variant_and_rejects_unknown(settings, scenario):
     assert all(claim.case_id != "capacity" for claim in explanation.descriptive_observations)
     with pytest.raises(ValueError, match="Unknown variant"):
         DecisionExplanationService(settings).explain("filter", variant_case_id="missing")
+    proposal = DecisionExplanationService(settings).next_plan("filter", variant_case_id="trucks")
+    assert proposal.plan is None and proposal.blockers[0].startswith("trucks")
+    with pytest.raises(ValueError, match="Unknown variant"):
+        DecisionExplanationService(settings).next_plan("filter", variant_case_id="missing")
 
 
 def test_next_plan_is_bounded_candidate_and_never_executes(settings, scenario, monkeypatch):
@@ -175,6 +179,30 @@ def test_terminal_commands_write_explanations_and_candidate_only(settings, scena
     assert json.loads(proposal_path.read_bytes())["auto_execute"] is False
 
 
+def test_terminal_next_plan_binds_last_compared_variant(settings, scenario, monkeypatch):
+    capacity = make_plan(scenario, repetitions=1).variants[0]
+    capacity35 = capacity.model_copy(update={
+        "case_id": "capacity35", "scenario": scenario.model_copy(update={"truck_capacity": 35}),
+    })
+    plan = make_plan(scenario, repetitions=1).model_copy(update={
+        "variants": (capacity, capacity35), "max_calls": 3, "external_wait_budget_sec": 30,
+    })
+    ExperimentService(SolverService(settings)).execute(plan, experiment_id="selected-next")
+    monkeypatch.setattr(subprocess, "run", Mock(side_effect=AssertionError("must remain offline")))
+    io = Script(["/compare capacity35 baseline", "/next-plan", "/next-plan capacity", "/quit"])
+    session = DecisionTerminalSession(
+        settings, io=io, session_id="selected-next-review", experiment_id="selected-next"
+    )
+    assert session.run() == 0
+    proposal_paths = sorted(session.folder.glob("*-next-plan.json"))
+    proposals = [json.loads(path.read_bytes()) for path in proposal_paths]
+    assert [proposal["plan"]["variants"][0]["case_id"] for proposal in proposals] == [
+        "capacity35", "capacity",
+    ]
+    state = json.loads((session.folder / "state.json").read_bytes())
+    assert state["selected_variant_case_id"] == "capacity"
+
+
 def test_cli_analysis_mode_uses_review_session_without_budget_or_solver(settings, monkeypatch):
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     factory = Mock()
@@ -189,3 +217,22 @@ def test_cli_analysis_mode_uses_review_session_without_budget_or_solver(settings
     ]) == 0
     assert factory.call_args.kwargs["experiment_id"] == "saved-experiment"
     assert not settings.runs_dir.exists()
+
+
+def test_cli_analysis_defaults_to_current_runs_without_solver_environment(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    for name in ("HGS_REPO_PATH", "GUROBI_REPO_PATH", "MOBILITYOPS_RUNS_DIR"):
+        monkeypatch.delenv(name, raising=False)
+    factory = Mock()
+    factory.return_value.run.return_value = 0
+    monkeypatch.setattr(cli, "DecisionTerminalSession", factory)
+    assert cli.main([
+        "--mode", "analysis", "--experiment-id", "saved-experiment",
+        "--session-id", "saved-review",
+    ]) == 0
+    configured = factory.call_args.args[0]
+    assert configured.runs_dir == tmp_path / "runs"
+    assert configured.hgs_repo_path == tmp_path / "runs/.analysis-only/hgs-unused"
+    assert configured.gurobi_repo_path == tmp_path / "runs/.analysis-only/gurobi-unused"
+    assert not (tmp_path / "runs").exists()

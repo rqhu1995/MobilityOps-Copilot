@@ -13,7 +13,7 @@ from mobilityops.services.terminal_session import terminal_text
 
 HELP = """/explain 重新复核全部原始证据并解释整个实验。
 /compare <variant-case-id> baseline 只解释该变体相对基准的证据。
-/next-plan 生成并保存一个有界候选计划；不会调用 LLM 或 solver。
+/next-plan [variant-case-id] 为最近比较或显式指定的变体生成有界候选计划；不会调用 LLM 或 solver。
 /help 查看帮助；/quit 退出并保存。每条分析命令都会重新复核原始证据。"""
 
 
@@ -34,6 +34,7 @@ class DecisionTerminalSession:
         self.folder = checked_root(self.settings, "decision-sessions") / session_id
         self.service = DecisionExplanationService(self.settings)
         self.command_number = 0
+        self.selected_variant_case_id: str | None = None
 
     def say(self, value: str) -> None:
         self.io.write(terminal_text(value))
@@ -78,20 +79,32 @@ class DecisionTerminalSession:
                     except (ValueError, OSError) as exc:
                         self._reject_evidence(exc)
                         continue
+                    self.selected_variant_case_id = parts[1]
                     self._show(explanation, command=f"compare-{parts[1]}")
-                elif command == "/next-plan":
+                elif command == "/next-plan" or command.startswith("/next-plan "):
+                    parts = command.split()
+                    if len(parts) > 2:
+                        self.say("格式：/next-plan [variant-case-id]")
+                        continue
+                    variant_case_id = parts[1] if len(parts) == 2 else self.selected_variant_case_id
+                    if variant_case_id is None:
+                        self.say("请先用 /compare <variant-case-id> baseline 选择变体，或显式输入 /next-plan <variant-case-id>。")
+                        continue
                     try:
-                        proposal = self.service.next_plan(self.experiment_id)
+                        proposal = self.service.next_plan(
+                            self.experiment_id, variant_case_id=variant_case_id
+                        )
                     except (ValueError, OSError) as exc:
                         self._reject_evidence(exc)
                         continue
+                    self.selected_variant_case_id = variant_case_id
                     self.command_number += 1
                     path = self.folder / f"{self.command_number:03d}-next-plan.json"
                     write_json(path, proposal.model_dump(mode="json"))
                     if proposal.plan is None:
                         self.say("未生成候选计划：" + "；".join(proposal.blockers))
                     else:
-                        self.say(f"候选计划已保存：{path}")
+                        self.say(f"候选计划已保存：{path}；变体={variant_case_id}")
                         self.say(f"计划 {proposal.plan.planned_calls} 次；等待预算 "
                                  f"{proposal.plan.external_wait_budget_sec:g} 秒。"
                                  "它尚未预检查、确认或执行。")
@@ -124,7 +137,8 @@ class DecisionTerminalSession:
         write_json(self.folder / "state.json", {
             "format": "decision_terminal_state_v1", "session_id": self.session_id,
             "experiment_id": self.experiment_id, "status": status,
-            "command_number": self.command_number, **details,
+            "command_number": self.command_number,
+            "selected_variant_case_id": self.selected_variant_case_id, **details,
         })
 
     def _reject_evidence(self, exc: ValueError | OSError) -> None:
