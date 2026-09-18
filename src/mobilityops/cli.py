@@ -13,6 +13,9 @@ from pydantic import ValidationError
 
 from mobilityops.config import Settings
 from mobilityops.domain import BackendName, ScenarioSpec
+from mobilityops.services.audited_execution_terminal_session import (
+    AuditedExecutionTerminalSession,
+)
 from mobilityops.services.copilot_audit import CopilotAuditService
 from mobilityops.services.copilot_terminal_session import CopilotTerminalSession
 from mobilityops.services.gemini_intake import GeminiBudgetConfig
@@ -39,16 +42,20 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--baseline", type=Path, help="显式基准 ScenarioSpec JSON；省略则逐项澄清")
     result.add_argument(
         "--mode",
-        choices=("scenario", "experiment", "analysis", "next-experiment", "copilot", "audit"),
+        choices=(
+            "scenario", "experiment", "analysis", "next-experiment", "copilot",
+            "audit", "audited-execution",
+        ),
         default="scenario",
         help=("scenario=单场景（默认）；experiment=有限重复实验计划；"
               "analysis=离线证据审阅；next-experiment=接管阶段 10 候选；"
-              "copilot=统一 Gemini 决策会话；audit=离线审计 Copilot 会话"),
+              "copilot=统一 Gemini 决策会话；audit=离线审计 Copilot 会话；"
+              "audited-execution=重新审计后接管已审阅计划"),
     )
     result.add_argument("--experiment-id", help="analysis 要复核或 copilot 初始载入的实验 ID")
     result.add_argument("--proposal", type=Path, help="next-experiment 模式的阶段 10 候选 JSON")
-    result.add_argument("--copilot-session-id", help="audit 模式要核验的 Copilot 会话 ID")
-    result.add_argument("--audit-id", help="audit 输出 ID；默认与 Copilot 会话 ID 相同")
+    result.add_argument("--copilot-session-id", help="audit/audited-execution 的来源 Copilot 会话 ID")
+    result.add_argument("--audit-id", help="audit 输出 ID，或 audited-execution 的来源审计 ID")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
     result.add_argument("--budget-hkd", type=float, default=1, help="本会话 LLM 费用上限，0 < x ≤ 10（默认 1 HKD）")
     result.add_argument("--max-calls", type=int, default=3, help="本会话最多提取次数，1–6（默认 3）")
@@ -104,8 +111,57 @@ def main(argv: Sequence[str] | None = None) -> int:
                 flush=True,
             )
             return 0
+        if args.mode == "audited-execution":
+            if not args.copilot_session_id or not args.audit_id:
+                raise ValueError(
+                    "audited-execution 模式需要 --copilot-session-id 和 --audit-id"
+                )
+            if args.baseline or args.experiment_id or args.proposal or args.backend:
+                raise ValueError(
+                    "audited-execution 从已审计计划读取场景；不要提供 baseline、"
+                    "experiment-id、proposal 或 backend"
+                )
+            settings = Settings.from_env(environment)
+            if args.gurobi_python is None and (
+                args.gurobi_time_interval_sec is not None
+                or args.gurobi_threads is not None
+            ):
+                raise ValueError(
+                    "请用 --gurobi-python 显式注册来源计划需要的 Gurobi adapter"
+                )
+            gurobi = None
+            if args.gurobi_python is not None:
+                gurobi = GurobiBackend(
+                    settings,
+                    options=GurobiOptions(
+                        python_executable=args.gurobi_python.expanduser(),
+                        time_interval_sec=(
+                            args.gurobi_time_interval_sec
+                            if args.gurobi_time_interval_sec is not None
+                            else 600
+                        ),
+                        threads=(
+                            args.gurobi_threads
+                            if args.gurobi_threads is not None
+                            else 1
+                        ),
+                    ),
+                )
+            session_id = args.session_id or (
+                f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
+            )
+            return AuditedExecutionTerminalSession(
+                SolverService(settings, gurobi_backend=gurobi),
+                io=Console(),
+                session_id=session_id,
+                source_session_id=args.copilot_session_id,
+                source_audit_id=args.audit_id,
+            ).run()
         if args.copilot_session_id or args.audit_id:
-            raise ValueError("--copilot-session-id 和 --audit-id 只用于 audit 模式")
+            raise ValueError(
+                "--copilot-session-id 和 --audit-id 只用于 audit 或 "
+                "audited-execution 模式"
+            )
         if args.mode == "analysis":
             if not args.experiment_id:
                 raise ValueError("analysis 模式需要 --experiment-id")

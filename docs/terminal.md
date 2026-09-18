@@ -316,3 +316,24 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 
 2026-09-18 真实影子会话的 4 次调用全部成功，usage 估算 0.187116 HKD；确认固定取消，阶段 13
 审计为 `verified_no_execution`，实际 solver 调用和许可证探测均为 0。
+
+## 审计绑定的执行接管
+
+阶段 15 可以把一个 `verified_no_execution` 的 Copilot 会话及其保存 audit 接回明确确认链路：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode audited-execution \
+  --copilot-session-id <source-session-id> \
+  --audit-id <source-audit-id> \
+  --session-id <new-session-id> \
+  --hgs-repo-path /home/runqiu/BRPWR-HGSADC-SBC \
+  --gurobi-repo-path /home/runqiu/BRPWR-Gurobi \
+  --runs-dir /home/runqiu/MobilityOps-Copilot/runs
+```
+
+此模式不调用 Gemini，不读取 `GEMINI_API_KEY`。它重新审计来源会话和保存 audit，重新生成原
+执行请求，再以新的 experiment/report ID 和当前 backend 配置执行全计划预检查。只有终端显示的
+`执行审计计划 <12位散列>` 能确认；其他输入取消。来源证据、计划、预检查或配置发生变化会拒绝
+旧确认且不调用 solver。完整绑定字段、产物和离线验收见
+[阶段 15 文档](audit-bound-execution.md)。
