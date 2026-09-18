@@ -260,3 +260,59 @@ backend 和时限、运行配置、候选/请求/审阅散列。只有终端当�
 solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请求快照位于
 `runs/next-experiment-requests/`。完整拒绝条件、产物和离线验收见
 [阶段 11 文档](confirmed-next-experiments.md)。
+
+## Gemini Decision Copilot
+
+阶段 12 用一个会话编排实验起草、证据解释、下一轮候选和执行审阅：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode copilot \
+  --baseline examples/scenario_6_1.json \
+  --backend hgs \
+  --budget-hkd 1.5 \
+  --max-calls 6
+```
+
+也可用 `--experiment-id <id>` 从既有实验开始。每条自然语言先产生一个受限 Gemini 路由决策；
+若选择起草或修订计划，字段提取会再消耗一次调用。`/state` 查看确定性状态和已预留预算，
+`/quit` 保存退出。Gemini 没有 shell、Python、solver 或确认工具。
+
+当模型选择执行审阅时，本地服务才做全场景预检查，并显示绑定请求与运行配置的一次性确认短语。
+自然语言中的“执行”不确认；确认前任何计划、证据、预检查或配置变化都会拒绝执行。完成后会话
+可继续解释结果或生成下一轮候选。协议、动作、证据规则和产物见
+[阶段 12 文档](gemini-decision-copilot.md)。
+
+## Copilot 会话离线审计
+
+阶段 13 提供非交互只读入口，对阶段 12 保存的会话及关联实验做完整证据重放：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode audit \
+  --copilot-session-id <copilot-session-id> \
+  --audit-id <audit-id>
+```
+
+从仓库根目录启动时默认读取 `./runs`；其他位置使用 `--runs-dir`。该模式不要求 TTY、
+`GEMINI_API_KEY`、`HGS_REPO_PATH` 或 `GUROBI_REPO_PATH`，也不接受计划、backend 或 solver
+参数。它不会调用 Gemini、solver、许可证环境或任何外部子进程。
+
+输出写入 `runs/copilot-audits/<audit-id>/report.json` 和 `report.md`。已有审计 ID 拒绝覆盖；
+使用不同 audit ID 重放相同源证据会得到相同内容和清单指纹。验证层次和状态含义见
+[阶段 13 文档](copilot-audit.md)。
+
+## 可审计的真实 Copilot 影子验收
+
+阶段 14 的固定脚本通过 service API 驱动真实 Copilot 会话，在执行确认处始终返回“取消”，并用
+硬阻断 adapter 保证即使会话边界发生回归也不会启动 HGS：
+
+```bash
+.venv/bin/python examples/stage14_audited_copilot_pilot.py
+```
+
+该入口最多调用 `gemini-3.8-flash` 4 次、预算 1 HKD，不注册 Gurobi、不探测许可证；结束后自动
+运行阶段 13 审计。完整固定输入、失败策略和产物见[阶段 14 文档](audited-copilot-pilot.md)。
+
+2026-09-18 真实影子会话的 4 次调用全部成功，usage 估算 0.187116 HKD；确认固定取消，阶段 13
+审计为 `verified_no_execution`，实际 solver 调用和许可证探测均为 0。

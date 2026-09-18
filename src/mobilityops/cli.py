@@ -13,6 +13,8 @@ from pydantic import ValidationError
 
 from mobilityops.config import Settings
 from mobilityops.domain import BackendName, ScenarioSpec
+from mobilityops.services.copilot_audit import CopilotAuditService
+from mobilityops.services.copilot_terminal_session import CopilotTerminalSession
 from mobilityops.services.gemini_intake import GeminiBudgetConfig
 from mobilityops.services.decision_terminal_session import DecisionTerminalSession
 from mobilityops.services.experiment_terminal_session import ExperimentTerminalSession
@@ -37,13 +39,16 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--baseline", type=Path, help="显式基准 ScenarioSpec JSON；省略则逐项澄清")
     result.add_argument(
         "--mode",
-        choices=("scenario", "experiment", "analysis", "next-experiment"),
+        choices=("scenario", "experiment", "analysis", "next-experiment", "copilot", "audit"),
         default="scenario",
         help=("scenario=单场景（默认）；experiment=有限重复实验计划；"
-              "analysis=离线证据审阅；next-experiment=接管阶段 10 候选"),
+              "analysis=离线证据审阅；next-experiment=接管阶段 10 候选；"
+              "copilot=统一 Gemini 决策会话；audit=离线审计 Copilot 会话"),
     )
-    result.add_argument("--experiment-id", help="analysis 模式要重新复核的实验 ID")
+    result.add_argument("--experiment-id", help="analysis 要复核或 copilot 初始载入的实验 ID")
     result.add_argument("--proposal", type=Path, help="next-experiment 模式的阶段 10 候选 JSON")
+    result.add_argument("--copilot-session-id", help="audit 模式要核验的 Copilot 会话 ID")
+    result.add_argument("--audit-id", help="audit 输出 ID；默认与 Copilot 会话 ID 相同")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
     result.add_argument("--budget-hkd", type=float, default=1, help="本会话 LLM 费用上限，0 < x ≤ 10（默认 1 HKD）")
     result.add_argument("--max-calls", type=int, default=3, help="本会话最多提取次数，1–6（默认 3）")
@@ -60,7 +65,7 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser()
     args = arguments.parse_args(argv)
-    if not sys.stdin.isatty():
+    if args.mode != "audit" and not sys.stdin.isatty():
         arguments.error("此入口需要交互终端；不接受管道中的预填确认。Python 自动化请使用现有 service API。")
     try:
         environment = {key: os.environ[key] for key in
@@ -69,6 +74,38 @@ def main(argv: Sequence[str] | None = None) -> int:
                            ("MOBILITYOPS_RUNS_DIR", args.runs_dir)):
             if value is not None:
                 environment[key] = str(value)
+        if args.mode == "audit":
+            if not args.copilot_session_id:
+                raise ValueError("audit 模式需要 --copilot-session-id")
+            if args.session_id is not None or any((
+                args.baseline, args.experiment_id, args.proposal, args.backend,
+                args.hgs_repo_path, args.gurobi_repo_path, args.gurobi_python,
+                args.gurobi_time_interval_sec, args.gurobi_threads,
+            )):
+                raise ValueError("audit 模式只读取 Copilot 证据；不要提供会话、计划或 solver 参数")
+            runs_dir = Path(environment["MOBILITYOPS_RUNS_DIR"]).expanduser() if environment.get(
+                "MOBILITYOPS_RUNS_DIR"
+            ) else Path.cwd() / "runs"
+            settings = Settings(
+                hgs_repo_path=runs_dir / ".audit-only/hgs-unused",
+                gurobi_repo_path=runs_dir / ".audit-only/gurobi-unused",
+                runs_dir=runs_dir,
+            )
+            audit_id = args.audit_id or args.copilot_session_id
+            report = CopilotAuditService(settings).write_report(
+                args.copilot_session_id, audit_id=audit_id
+            )
+            folder = settings.runs_dir / "copilot-audits" / audit_id
+            print(
+                f"审计完成：{report.audit_status}；模型调用 "
+                f"{report.model_usage.calls_observed}；solver 调用 "
+                f"{report.execution.calls_invoked}；证据文件 {len(report.files)}。\n"
+                f"Markdown：{folder / 'report.md'}\nJSON：{folder / 'report.json'}",
+                flush=True,
+            )
+            return 0
+        if args.copilot_session_id or args.audit_id:
+            raise ValueError("--copilot-session-id 和 --audit-id 只用于 audit 模式")
         if args.mode == "analysis":
             if not args.experiment_id:
                 raise ValueError("analysis 模式需要 --experiment-id")
@@ -112,8 +149,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 SolverService(settings, gurobi_backend=gurobi), io=Console(),
                 session_id=session_id, proposal_path=args.proposal,
             ).run()
-        if args.experiment_id or args.proposal:
-            raise ValueError("--experiment-id 只用于 analysis；--proposal 只用于 next-experiment")
+        if args.proposal:
+            raise ValueError("--proposal 只用于 next-experiment")
+        if args.experiment_id and args.mode != "copilot":
+            raise ValueError("--experiment-id 只用于 analysis 或 copilot")
         settings = Settings.from_env(environment)
         budget = GeminiBudgetConfig(budget_hkd=args.budget_hkd, max_calls=args.max_calls)
         if budget.reservation_hkd > Decimal(str(budget.budget_hkd)):
@@ -132,10 +171,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             gurobi = GurobiBackend(settings, options=options)
         session_id = args.session_id or f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
+        common = dict(
+            io=Console(), session_id=session_id, budget=budget, context=context,
+            backend=BackendName(args.backend) if args.backend else None,
+        )
+        solver = SolverService(settings, gurobi_backend=gurobi)
+        if args.mode == "copilot":
+            return CopilotTerminalSession(
+                solver, experiment_id=args.experiment_id, **common
+            ).run()
         session_type = ExperimentTerminalSession if args.mode == "experiment" else TerminalSession
-        return session_type(SolverService(settings, gurobi_backend=gurobi), io=Console(), session_id=session_id,
-                            budget=budget, context=context,
-                            backend=BackendName(args.backend) if args.backend else None).run()
+        return session_type(solver, **common).run()
     except ValidationError as exc:
         print("配置校验失败：" + terminal_text(str(exc.errors(include_input=False, include_url=False))), file=sys.stderr)
     except (ValueError, OSError) as exc:
