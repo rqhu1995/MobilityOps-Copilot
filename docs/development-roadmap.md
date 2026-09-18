@@ -224,3 +224,19 @@ Provider tool/function call、任意 shell/Python、未知 evidence ID、无来�
 协议验收，预留 1.31328 HKD、usage 估算 0.085188 HKD。第 6 个正确证据回答最初触发本地数字
 校验误报；校验器修复后保存响应离线重放通过，未追加调用或重试。真实 solver 调用和许可证探测
 均为 0，两个 solver 仓库保持不变。
+
+## 已完成阶段 13：Copilot 会话离线审计
+
+阶段 13 新增非交互 `--mode audit --copilot-session-id ... --audit-id ...`。入口从原始本地
+证据重新验证阶段 12 的 session/state/event 一致性、Gemini 预算与逐次调用、受限动作重放、
+模型可见 evidence 与本地工具产物的逐项绑定，以及确认请求、父子实验谱系、原始 solver run、
+独立验证和保存报告。成功后为所有关联证据生成逐文件 SHA-256 和规范清单指纹，并保存
+`copilot_audit_report_v1` JSON 与 Markdown。
+
+该模式默认读取仓库根目录 `./runs`，不要求 TTY、Gemini 凭据或 solver 仓库环境变量；不会
+调用网络、子进程、solver 或许可证环境。已有 audit ID 拒绝覆盖，损坏、缺失、陈旧、符号链接
+或跨层不一致的证据使整个审计失败。完整契约见[阶段 13 文档](copilot-audit.md)。
+
+离线开发新增 9 项测试，完整 **640 项测试通过**。fake Gemini/fake HGS 覆盖确认后两次执行
+和独立报告重放；模型动作、模型输入 evidence、账本、run、状态/event 与文件结构的篡改均有
+负向测试。真实 Gemini、HGS/Gurobi 调用和许可证探测均为 0，solver core 未修改。

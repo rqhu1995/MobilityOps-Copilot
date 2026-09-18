@@ -36,7 +36,22 @@ cp .env.example .env
 
 `.env` 被 Git 忽略。当前代码只读取进程环境变量，不自动加载 `.env`，以避免引入额外依赖；启动命令或后续 CLI 应显式提供这些变量。
 
-## 当前阶段：12，Gemini Decision Copilot
+## 当前阶段：13，Copilot 会话离线审计
+
+阶段 12 的会话现在可以从原始本地证据重新验证，并生成逐文件 SHA-256 的确定性
+JSON/Markdown 证据包。审计不要求交互终端、Gemini 凭据或 solver 仓库环境变量，也不会
+调用模型、solver 或许可证环境：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode audit \
+  --copilot-session-id <copilot-session-id> \
+  --audit-id <audit-id>
+```
+
+完整重放范围、状态、产物和限制见[阶段 13 文档](docs/copilot-audit.md)。
+
+## 阶段 12：Gemini Decision Copilot
 
 统一入口现可在同一会话中完成“业务目标 → 受校验实验计划 → 证据解释 → 下一轮候选 →
 全计划预检查 → 本地明确确认 → 报告回接”。Gemini 只选择有限本地动作和生成证据引用的表述；

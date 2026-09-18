@@ -282,3 +282,22 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 自然语言中的“执行”不确认；确认前任何计划、证据、预检查或配置变化都会拒绝执行。完成后会话
 可继续解释结果或生成下一轮候选。协议、动作、证据规则和产物见
 [阶段 12 文档](gemini-decision-copilot.md)。
+
+## Copilot 会话离线审计
+
+阶段 13 提供非交互只读入口，对阶段 12 保存的会话及关联实验做完整证据重放：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode audit \
+  --copilot-session-id <copilot-session-id> \
+  --audit-id <audit-id>
+```
+
+从仓库根目录启动时默认读取 `./runs`；其他位置使用 `--runs-dir`。该模式不要求 TTY、
+`GEMINI_API_KEY`、`HGS_REPO_PATH` 或 `GUROBI_REPO_PATH`，也不接受计划、backend 或 solver
+参数。它不会调用 Gemini、solver、许可证环境或任何外部子进程。
+
+输出写入 `runs/copilot-audits/<audit-id>/report.json` 和 `report.md`。已有审计 ID 拒绝覆盖；
+使用不同 audit ID 重放相同源证据会得到相同内容和清单指纹。验证层次和状态含义见
+[阶段 13 文档](copilot-audit.md)。
