@@ -36,7 +36,25 @@ cp .env.example .env
 
 `.env` 被 Git 忽略。当前代码只读取进程环境变量，不自动加载 `.env`，以避免引入额外依赖；启动命令或后续 CLI 应显式提供这些变量。
 
-## 当前阶段：8，终端交互入口
+## 当前阶段：12，Gemini Decision Copilot
+
+统一入口现可在同一会话中完成“业务目标 → 受校验实验计划 → 证据解释 → 下一轮候选 →
+全计划预检查 → 本地明确确认 → 报告回接”。Gemini 只选择有限本地动作和生成证据引用的表述；
+它没有 shell、Python、solver 或执行确认能力。启动示例：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode copilot \
+  --baseline examples/scenario_6_1.json \
+  --backend hgs \
+  --budget-hkd 1.5 \
+  --max-calls 6
+```
+
+从既有实验开始时改用 `--experiment-id <id>`。完整动作、预算、确认和证据契约见
+[阶段 12 文档](docs/gemini-decision-copilot.md)。以下章节保留各底层阶段的历史使用和验收记录。
+
+## 阶段 8：终端交互入口
 
 终端现已接通“输入需求 → 澄清 → 审阅场景与预算 → 明确确认 → 单次求解与报告”。
 复用现有 Gemini、场景验证、HGS/Gurobi 和报告服务，不新增依赖。默认每会话 LLM 预算

@@ -6,7 +6,7 @@
 
 ## 当前状态与工作范围
 
-阶段 3（HGS 集成）、阶段 4A（Gurobi 集成前审计）、阶段 4B（Gurobi 集成）、阶段 5（显式能力选择与情景分析）、阶段 6（受控重复实验与可读报告）、阶段 7（自然语言需求到显式执行请求）、阶段 8（HGS/Gurobi 终端交互）、阶段 9（自然语言实验计划）、阶段 10（证据绑定的结果解释与下一轮实验建议）及阶段 11（下一轮实验候选的离线接管、预检查与明确执行请求）均已完成离线开发。最新完整开发验收为 2026-09-17：616 项测试通过；单场景两套 backend 和 HGS 自然语言重复实验的终端完整执行链路均已有真实验收证据。阶段 11 尚未执行真实候选；阶段 6 的 9 次 HGS 重复实验与 3 个历史 Gurobi 终态重放、阶段 5 的 3 次真实求解和 12 个历史重放继续作为历史基线。
+阶段 3（HGS 集成）、阶段 4A（Gurobi 集成前审计）、阶段 4B（Gurobi 集成）、阶段 5（显式能力选择与情景分析）、阶段 6（受控重复实验与可读报告）、阶段 7（自然语言需求到显式执行请求）、阶段 8（HGS/Gurobi 终端交互）、阶段 9（自然语言实验计划）、阶段 10（证据绑定的结果解释与下一轮实验建议）、阶段 11（下一轮实验候选的离线接管、预检查与明确执行请求）及阶段 12（Gemini Decision Copilot v1）均已完成离线开发。最新完整开发验收为 2026-09-18：631 项测试通过；单场景两套 backend 和 HGS 自然语言重复实验的终端完整执行链路均已有真实验收证据。阶段 11 尚未执行真实候选；阶段 12 的 6 次真实 Gemini 协议验收已完成，真实 solver 调用和许可证探测均为 0。阶段 6 的 9 次 HGS 重复实验与 3 个历史 Gurobi 终态重放、阶段 5 的 3 次真实求解和 12 个历史重放继续作为历史基线。
 
 当前已实现 `SolverService.assess()`、`select()`、`preflight()`、`solve_selected()`、`ScenarioAnalysisService.observe()` / `compare()`，以及 `ExperimentService.precheck()` / `execute()` 和 `ExperimentReportService.analyze()` / `write_report()`。阶段 6 调用约定、统计分母和验收见 [重复实验文档](docs/experiments.md)。接口及验收范围见 [阶段 5 文档](docs/scenario-analysis.md)，Gurobi 模型差异和接入约定见 [集成审计](docs/gurobi-integration-audit.md)及 [adapter 文档](docs/gurobi-adapter.md)。本地产物在被忽略的 `runs/` 下，不作为普通测试的必需依赖。
 
@@ -21,6 +21,10 @@
 2026-09-17 用户要求启动阶段 10：每次从原始实验及运行证据重新复核后，将结果分成已验证事实、本批描述性观察和不能得出的结论；终端提供 `/explain`、`/compare <variant> baseline` 与 `/next-plan [variant]`。下一轮建议只生成绑定当前重放报告及最近比较或显式指定变体的有限 `ExperimentPlan` 候选，`auto_execute=false`，仍需新的全计划预检查、预算审阅和明确确认；没有选择变体时拒绝生成。跨 backend、无候选、多模型/输入签名或损坏证据不生成统一差值或候选计划。本阶段完成 11 项新增离线测试，完整 603 项测试通过；analysis 模式从仓库根目录默认读取 `./runs`，不要求 solver 仓库环境变量。真实 Gemini、HGS/Gurobi 调用和许可证探测均为 0，两个 solver 仓库未修改。范围与使用见 [阶段 10 文档](docs/evidence-based-explanations.md)。
 
 2026-09-17 用户要求启动阶段 11：新增 `--mode next-experiment --proposal ...`，将阶段 10 的 `NextExperimentProposal` 接入现有安全执行链路。入口每次重新复核来源实验并核对 `source_report_sha256`，只接受无 blocker、`auto_execute=false`、含单一明确变体的完整候选；随后执行全场景能力/运行预检查，展示调用数、等待预算和 backend 配置，生成同时绑定候选文件、规范候选、来源证据、完整计划、预检查与运行配置的请求。候选文件、来源证据、计划、预检查或运行配置在确认前发生变化均使旧确认失效；文件或自然语言中的“执行”不会代替一次性终端确认。阶段 11 新增 13 项离线测试，完整 616 项测试通过；fake HGS 完成候选两个 case 各 3 次的确认后闭环并只读重放一致。开发验收期间真实 Gemini、HGS/Gurobi 调用和许可证探测均为 0，当前真实 6 次 HGS 候选未执行，两个 solver 仓库未修改。范围与使用见 [阶段 11 文档](docs/confirmed-next-experiments.md)。
+
+2026-09-17 用户要求启动阶段 12：交付统一的 `Gemini Decision Copilot v1`，把自然语言目标、现有证据审阅、实验计划、预检查、明确确认、结果解释和下一轮建议编排在同一受控会话中。Gemini 只负责理解、有限工具选择和证据绑定的表述；所有计划、能力、预检查、执行请求、结果复核和确认仍由现有确定性服务负责。不得向模型提供任意 shell/Python 工具，不得让模型生成或接受执行确认。首轮真实模型固定为 `gemini-3.8-flash`，最多 6 次 interactions 调用、总预算上限 1.5 HKD，凭据仅从 `GEMINI_API_KEY` 读取；失败不自动重试或续费。先完成 fake Gemini/fake solver 离线闭环，再做最多 6 次、真实 solver 调用为 0 的真实 Gemini 协议与工具选择验收。本轮不得调用真实 HGS/Gurobi、不得探测许可证、不得修改 solver core；任何真实 solver 请求仍需后续针对完整计划的单独明确授权。
+
+阶段 12 已完成：新增 `--mode copilot`、受限 `gemini_copilot_decision_v1` 动作协议、证据 ID/数字约束、统一计划/解释/下一轮/执行审阅会话，以及确认后父子实验谱系。新增 15 项测试，完整 631 项通过；fake Gemini/fake HGS 覆盖两场景计划、全计划预检查、精确确认、2 次执行、独立解释和阶段 11 候选接管，并在剩余模型额度不足 2 次时隐藏需两次调用的计划起草动作。真实验收固定调用 `gemini-3.8-flash` 6 次，预留 1.31328 HKD、usage 估算合计 0.085188 HKD；前 5 个案例直接通过，第 6 个正确回答最初因本地校验器把列表序号及 `evidence-001` 误判为无来源数字而被拒绝。修复仅忽略已验证证据 ID 和行首列表标记，保存的第 6 次响应随后离线重放通过，没有第 7 次调用或重试。真实 solver 调用和许可证探测均为 0，两个 solver 仓库保持不变。范围与使用见 [阶段 12 文档](docs/gemini-decision-copilot.md)。
 
 继续允许维护和修复现有 adapter、输入验证、能力评估、选择、受控执行、证据复核和情景分析。保持简单的 Python application service；可按实际职责拆分模块，不以“最小”为由省略必要的错误处理、证据保存或验证。
 

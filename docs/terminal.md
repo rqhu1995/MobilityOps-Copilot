@@ -260,3 +260,25 @@ backend 和时限、运行配置、候选/请求/审阅散列。只有终端当�
 solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请求快照位于
 `runs/next-experiment-requests/`。完整拒绝条件、产物和离线验收见
 [阶段 11 文档](confirmed-next-experiments.md)。
+
+## Gemini Decision Copilot
+
+阶段 12 用一个会话编排实验起草、证据解释、下一轮候选和执行审阅：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode copilot \
+  --baseline examples/scenario_6_1.json \
+  --backend hgs \
+  --budget-hkd 1.5 \
+  --max-calls 6
+```
+
+也可用 `--experiment-id <id>` 从既有实验开始。每条自然语言先产生一个受限 Gemini 路由决策；
+若选择起草或修订计划，字段提取会再消耗一次调用。`/state` 查看确定性状态和已预留预算，
+`/quit` 保存退出。Gemini 没有 shell、Python、solver 或确认工具。
+
+当模型选择执行审阅时，本地服务才做全场景预检查，并显示绑定请求与运行配置的一次性确认短语。
+自然语言中的“执行”不确认；确认前任何计划、证据、预检查或配置变化都会拒绝执行。完成后会话
+可继续解释结果或生成下一轮候选。协议、动作、证据规则和产物见
+[阶段 12 文档](gemini-decision-copilot.md)。

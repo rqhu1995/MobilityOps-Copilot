@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from mobilityops.config import Settings
 from mobilityops.domain import BackendName, ScenarioSpec
+from mobilityops.services.copilot_terminal_session import CopilotTerminalSession
 from mobilityops.services.gemini_intake import GeminiBudgetConfig
 from mobilityops.services.decision_terminal_session import DecisionTerminalSession
 from mobilityops.services.experiment_terminal_session import ExperimentTerminalSession
@@ -37,12 +38,13 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--baseline", type=Path, help="显式基准 ScenarioSpec JSON；省略则逐项澄清")
     result.add_argument(
         "--mode",
-        choices=("scenario", "experiment", "analysis", "next-experiment"),
+        choices=("scenario", "experiment", "analysis", "next-experiment", "copilot"),
         default="scenario",
         help=("scenario=单场景（默认）；experiment=有限重复实验计划；"
-              "analysis=离线证据审阅；next-experiment=接管阶段 10 候选"),
+              "analysis=离线证据审阅；next-experiment=接管阶段 10 候选；"
+              "copilot=统一 Gemini 决策会话"),
     )
-    result.add_argument("--experiment-id", help="analysis 模式要重新复核的实验 ID")
+    result.add_argument("--experiment-id", help="analysis 要复核或 copilot 初始载入的实验 ID")
     result.add_argument("--proposal", type=Path, help="next-experiment 模式的阶段 10 候选 JSON")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
     result.add_argument("--budget-hkd", type=float, default=1, help="本会话 LLM 费用上限，0 < x ≤ 10（默认 1 HKD）")
@@ -112,8 +114,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 SolverService(settings, gurobi_backend=gurobi), io=Console(),
                 session_id=session_id, proposal_path=args.proposal,
             ).run()
-        if args.experiment_id or args.proposal:
-            raise ValueError("--experiment-id 只用于 analysis；--proposal 只用于 next-experiment")
+        if args.proposal:
+            raise ValueError("--proposal 只用于 next-experiment")
+        if args.experiment_id and args.mode != "copilot":
+            raise ValueError("--experiment-id 只用于 analysis 或 copilot")
         settings = Settings.from_env(environment)
         budget = GeminiBudgetConfig(budget_hkd=args.budget_hkd, max_calls=args.max_calls)
         if budget.reservation_hkd > Decimal(str(budget.budget_hkd)):
@@ -132,10 +136,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             gurobi = GurobiBackend(settings, options=options)
         session_id = args.session_id or f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
+        common = dict(
+            io=Console(), session_id=session_id, budget=budget, context=context,
+            backend=BackendName(args.backend) if args.backend else None,
+        )
+        solver = SolverService(settings, gurobi_backend=gurobi)
+        if args.mode == "copilot":
+            return CopilotTerminalSession(
+                solver, experiment_id=args.experiment_id, **common
+            ).run()
         session_type = ExperimentTerminalSession if args.mode == "experiment" else TerminalSession
-        return session_type(SolverService(settings, gurobi_backend=gurobi), io=Console(), session_id=session_id,
-                            budget=budget, context=context,
-                            backend=BackendName(args.backend) if args.backend else None).run()
+        return session_type(solver, **common).run()
     except ValidationError as exc:
         print("配置校验失败：" + terminal_text(str(exc.errors(include_input=False, include_url=False))), file=sys.stderr)
     except (ValueError, OSError) as exc:
