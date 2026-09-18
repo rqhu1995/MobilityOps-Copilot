@@ -36,7 +36,20 @@ cp .env.example .env
 
 `.env` 被 Git 忽略。当前代码只读取进程环境变量，不自动加载 `.env`，以避免引入额外依赖；启动命令或后续 CLI 应显式提供这些变量。
 
-## 当前阶段：13，Copilot 会话离线审计
+## 当前阶段：14，可审计的真实 Copilot 影子会话
+
+阶段 14 用固定 service 脚本把真实 Gemini 计划路由、字段提取、HGS 只读预检查、执行审阅、
+明确取消、证据回答和阶段 13 审计串成一条纵向路径。真实验收已完成 4 次 Gemini 调用，usage
+估算 0.187116 HKD；审计状态为 `verified_no_execution`。专用 HGS adapter 硬阻断 `solve()`，
+因此没有执行计划中的 solver 调用：
+
+```bash
+.venv/bin/python examples/stage14_audited_copilot_pilot.py
+```
+
+范围、固定 ID、失败关闭和产物见[阶段 14 文档](docs/audited-copilot-pilot.md)。
+
+## 阶段 13：Copilot 会话离线审计
 
 阶段 12 的会话现在可以从原始本地证据重新验证，并生成逐文件 SHA-256 的确定性
 JSON/Markdown 证据包。审计不要求交互终端、Gemini 凭据或 solver 仓库环境变量，也不会

@@ -240,3 +240,19 @@ Provider tool/function call、任意 shell/Python、未知 evidence ID、无来�
 离线开发新增 9 项测试，完整 **640 项测试通过**。fake Gemini/fake HGS 覆盖确认后两次执行
 和独立报告重放；模型动作、模型输入 evidence、账本、run、状态/event 与文件结构的篡改均有
 负向测试。真实 Gemini、HGS/Gurobi 调用和许可证探测均为 0，solver core 未修改。
+
+## 已完成阶段 14：可审计的真实 Copilot 影子会话
+
+阶段 14 不新增自动执行能力，而是把阶段 12 的真实统一会话和阶段 13 的离线审计串成固定验收。
+会话使用真实 `gemini-3.8-flash` 路由完整 HGS 实验计划，执行只读预检查并生成绑定计划、等待预算
+和 backend 配置的审阅；本地输入固定取消确认，专用 adapter 同时硬阻断 `solve()`。最后一次模型
+调用只根据计划与审阅证据回答调用数、等待预算和不能得出的结论，然后由阶段 13 重放完整证据链。
+
+授权边界为最多 4 次 interactions、1 HKD，失败停止且不重试；真实 HGS/Gurobi、许可证探测、
+solver core 修改均为 0。离线新增 5 项测试，完整 **645 项测试通过**。固定入口和产物见
+[阶段 14 文档](audited-copilot-pilot.md)。
+
+真实会话 `stage14-shadow-20260918-v1` 的 4 次调用全部成功，预留 0.87552 HKD、usage 估算
+0.187116 HKD；动作依次为计划起草、执行审阅和证据回答。baseline/capacity30 的两次计划通过
+只读预检查后在终端确认处明确取消，实际 solver 调用为 0。阶段 13 审计状态
+`verified_no_execution`，39 个文件进入清单；没有创建 solver run、探测许可证或修改 solver 仓库。

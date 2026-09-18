@@ -301,3 +301,18 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 输出写入 `runs/copilot-audits/<audit-id>/report.json` 和 `report.md`。已有审计 ID 拒绝覆盖；
 使用不同 audit ID 重放相同源证据会得到相同内容和清单指纹。验证层次和状态含义见
 [阶段 13 文档](copilot-audit.md)。
+
+## 可审计的真实 Copilot 影子验收
+
+阶段 14 的固定脚本通过 service API 驱动真实 Copilot 会话，在执行确认处始终返回“取消”，并用
+硬阻断 adapter 保证即使会话边界发生回归也不会启动 HGS：
+
+```bash
+.venv/bin/python examples/stage14_audited_copilot_pilot.py
+```
+
+该入口最多调用 `gemini-3.8-flash` 4 次、预算 1 HKD，不注册 Gurobi、不探测许可证；结束后自动
+运行阶段 13 审计。完整固定输入、失败策略和产物见[阶段 14 文档](audited-copilot-pilot.md)。
+
+2026-09-18 真实影子会话的 4 次调用全部成功，usage 估算 0.187116 HKD；确认固定取消，阶段 13
+审计为 `verified_no_execution`，实际 solver 调用和许可证探测均为 0。
