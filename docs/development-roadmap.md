@@ -273,3 +273,26 @@ audit，先重新运行阶段 13 确定性审计并要求保存 audit 与当前�
 执行和独立报告，取消、错确认、audit 篡改及 CLI 路由有负向测试。真实 Gemini、HGS/Gurobi
 调用和许可证探测均为 0，solver core 未修改。阶段 14 的真实计划未执行，仍需新的明确授权。
 完整契约见[阶段 15 文档](audit-bound-execution.md)。
+
+## 当前阶段 16：审计绑定的真实 HGS 小批验收
+
+阶段 16 把阶段 14 的已审计、未执行真实计划和阶段 15 的执行接管扩展为执行后闭环。新增非交互
+`--mode audited-execution-audit --audited-execution-session-id ... --audit-id ...`，从阶段 15
+session 开始重放来源 Copilot audit、来源计划与审阅、外层 audit-bound 请求、内部实验请求、终端
+确认、父子谱系、实验批次、原始 run 快照、独立验证和保存报告，并生成逐文件 SHA-256 清单。
+
+审计不要求 TTY、Gemini 凭据或 solver 仓库路径，不调用网络、solver、许可证环境或子进程。任一
+缺失、篡改、符号链接、状态矛盾、报告漂移或跨层散列不一致会拒绝整个闭环；已有 audit ID 不
+覆盖。离线新增 4 项测试，完整 **654 项测试通过**，fake HGS 覆盖两个 case 共 2 次执行、报告和
+闭环审计，谱系与原始 run 篡改有负向测试。
+
+真实验收候选固定为阶段 14 的 baseline/capacity30 各 1 次 HGS，内部/外部 5/10 秒，最多 2 次、
+总等待预算 20 秒；不新增 Gemini、不调用 Gurobi、不探测许可证、不重试或补跑。本阶段开发没有
+执行该真实小批；仍需新的明确授权和阶段 15 当次终端确认。完整计划见
+[阶段 16 文档](audit-bound-real-pilot.md)。
+
+2026-09-21 用户确认绑定当次审阅的短语后，真实小批已完成：baseline/capacity30 各 1 次 HGS
+均 `succeeded`，2 个候选全部通过独立复核，批次状态 `completed`，实际调用 2/2，预留等待
+20/20 秒，实际耗时约 3.16711 秒。执行后闭环审计为 `verified_complete`，80 个证据文件进入清单，
+保存结果再次只读重放一致。本次没有新增 Gemini/Gurobi 调用、许可证探测、重试或补跑，两个
+solver 仓库保持干净。单 case `n=1` 的差异仅是描述性观测，不能证明因果或最优性。

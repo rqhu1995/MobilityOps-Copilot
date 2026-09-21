@@ -337,3 +337,25 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 `执行审计计划 <12位散列>` 能确认；其他输入取消。来源证据、计划、预检查或配置发生变化会拒绝
 旧确认且不调用 solver。完整绑定字段、产物和离线验收见
 [阶段 15 文档](audit-bound-execution.md)。
+
+## 审计绑定执行的闭环复核
+
+阶段 16 在阶段 15 完成执行后提供无交互、只读的完整重放：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode audited-execution-audit \
+  --audited-execution-session-id <stage15-session-id> \
+  --audit-id <new-audit-id> \
+  --runs-dir /home/runqiu/MobilityOps-Copilot/runs
+```
+
+该入口不要求 TTY、`GEMINI_API_KEY`、`HGS_REPO_PATH` 或 `GUROBI_REPO_PATH`。它不调用外部
+进程，而是重新验证来源 audit、执行请求、确认、谱系、原始 run 与报告，并生成逐文件 SHA-256
+清单。输出位于 `runs/audited-execution-audits/<audit-id>/`，已有 audit ID 拒绝覆盖。完整范围和
+真实小批边界见[阶段 16 文档](audit-bound-real-pilot.md)。
+
+2026-09-21，阶段 16 真实会话在匹配审阅指纹的明确确认后执行 baseline/capacity30 各 1 次 HGS，
+两次均 `succeeded` 且通过独立复核；执行后审计为 `verified_complete`，清单含 80 个文件。没有
+新增 Gemini/Gurobi 调用或许可证探测。证据 ID、指标和限制见
+[真实小批完成记录](audit-bound-real-pilot.md#真实小批完成记录)。
