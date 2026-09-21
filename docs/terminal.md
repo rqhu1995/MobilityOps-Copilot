@@ -359,3 +359,21 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 两次均 `succeeded` 且通过独立复核；执行后审计为 `verified_complete`，清单含 80 个文件。没有
 新增 Gemini/Gurobi 调用或许可证探测。证据 ID、指标和限制见
 [真实小批完成记录](audit-bound-real-pilot.md#真实小批完成记录)。
+
+## 生成审计绑定的决策证据包
+
+阶段 17 从一个阶段 16 执行审计生成确定性 Decision Dossier：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode dossier \
+  --execution-audit-id <execution-audit-id> \
+  --dossier-id <new-dossier-id> \
+  --variant-case-id <variant-case-id> \
+  --runs-dir /home/runqiu/MobilityOps-Copilot/runs
+```
+
+该入口不要求 TTY、Gemini key 或 solver 路径，不启动外部进程。它重新验证 audit 和报告后输出
+`dossier.json`、`dossier.md` 与 `next-plan.json`。下一轮文件始终 `auto_execute=false`；生成文件
+不构成预检查或执行授权。完整决策门和阶段 16 真实 dossier 见
+[阶段 17 文档](audited-decision-dossier.md)。

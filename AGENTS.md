@@ -6,7 +6,7 @@
 
 ## 当前状态与工作范围
 
-阶段 3（HGS 集成）、阶段 4A（Gurobi 集成前审计）、阶段 4B（Gurobi 集成）、阶段 5（显式能力选择与情景分析）、阶段 6（受控重复实验与可读报告）、阶段 7（自然语言需求到显式执行请求）、阶段 8（HGS/Gurobi 终端交互）、阶段 9（自然语言实验计划）、阶段 10（证据绑定的结果解释与下一轮实验建议）、阶段 11（下一轮实验候选的离线接管、预检查与明确执行请求）、阶段 12（Gemini Decision Copilot v1）、阶段 13（Copilot 会话离线审计）、阶段 14（可审计的真实 Copilot 影子会话）、阶段 15（审计绑定的执行接管）及阶段 16（审计绑定的真实 HGS 小批验收）均已完成。最新完整开发验收为 2026-09-18：654 项测试通过；单场景两套 backend 和 HGS 自然语言重复实验的终端完整执行链路均已有真实验收证据。阶段 11 尚未执行真实候选；阶段 12 的 6 次真实 Gemini 协议验收已完成，真实 solver 调用和许可证探测均为 0。阶段 13 只重放本地证据，没有新增模型、solver 或许可证调用。阶段 14 已完成 4 次真实 Gemini 影子会话和阶段 13 审计，阶段 15 已完成 fake HGS 接管闭环。2026-09-21 阶段 16 已按新确认执行阶段 14 的 baseline/capacity30 两次真实 HGS，均成功并通过独立复核，执行后审计为 `verified_complete`；本次没有新增 Gemini/Gurobi 调用或许可证探测。阶段 6 的 9 次 HGS 重复实验与 3 个历史 Gurobi 终态重放、阶段 5 的 3 次真实求解和 12 个历史重放继续作为历史基线。
+阶段 3（HGS 集成）、阶段 4A（Gurobi 集成前审计）、阶段 4B（Gurobi 集成）、阶段 5（显式能力选择与情景分析）、阶段 6（受控重复实验与可读报告）、阶段 7（自然语言需求到显式执行请求）、阶段 8（HGS/Gurobi 终端交互）、阶段 9（自然语言实验计划）、阶段 10（证据绑定的结果解释与下一轮实验建议）、阶段 11（下一轮实验候选的离线接管、预检查与明确执行请求）、阶段 12（Gemini Decision Copilot v1）、阶段 13（Copilot 会话离线审计）、阶段 14（可审计的真实 Copilot 影子会话）、阶段 15（审计绑定的执行接管）、阶段 16（审计绑定的真实 HGS 小批验收）及阶段 17（审计证据绑定的 Decision Dossier v1）均已完成。最新完整开发验收为 2026-09-21：659 项测试通过；单场景两套 backend 和 HGS 自然语言重复实验的终端完整执行链路均已有真实验收证据。阶段 11 尚未执行真实候选；阶段 12 的 6 次真实 Gemini 协议验收已完成，真实 solver 调用和许可证探测均为 0。阶段 13 只重放本地证据，没有新增模型、solver 或许可证调用。阶段 14 已完成 4 次真实 Gemini 影子会话和阶段 13 审计，阶段 15 已完成 fake HGS 接管闭环。2026-09-21 阶段 16 已按新确认执行阶段 14 的 baseline/capacity30 两次真实 HGS，均成功并通过独立复核，执行后审计为 `verified_complete`。阶段 17 已从该证据生成 `collect_replicates` dossier 和未授权的 6 次 HGS 候选；本阶段没有新增 Gemini/solver 调用或许可证探测。阶段 6 的 9 次 HGS 重复实验与 3 个历史 Gurobi 终态重放、阶段 5 的 3 次真实求解和 12 个历史重放继续作为历史基线。
 
 当前已实现 `SolverService.assess()`、`select()`、`preflight()`、`solve_selected()`、`ScenarioAnalysisService.observe()` / `compare()`，以及 `ExperimentService.precheck()` / `execute()` 和 `ExperimentReportService.analyze()` / `write_report()`。阶段 6 调用约定、统计分母和验收见 [重复实验文档](docs/experiments.md)。接口及验收范围见 [阶段 5 文档](docs/scenario-analysis.md)，Gurobi 模型差异和接入约定见 [集成审计](docs/gurobi-integration-audit.md)及 [adapter 文档](docs/gurobi-adapter.md)。本地产物在被忽略的 `runs/` 下，不作为普通测试的必需依赖。
 
@@ -35,6 +35,8 @@
 2026-09-18 用户要求进入阶段 16：新增 `--mode audited-execution-audit --audited-execution-session-id ... --audit-id ...`，将阶段 14 来源 audit、阶段 15 双层请求和确认、父子谱系、实验批次、原始 run、独立验证及保存报告做无交互确定性重放，并输出逐文件 SHA-256 清单。入口不需要 TTY、Gemini 凭据或 solver 仓库，不调用网络、solver、许可证环境或外部子进程；缺失、篡改、符号链接、状态矛盾或跨层散列不一致均拒绝。新增 4 项离线测试，完整 654 项通过；fake HGS 完成两个 case 共 2 次执行及闭环审计，谱系和原始 run 篡改均被检出。本轮真实 Gemini、HGS/Gurobi 调用和许可证探测为 0，solver core 未修改。真实验收候选固定为阶段 14 的 baseline/capacity30 各 1 次 HGS、内部/外部 5/10 秒、最多 2 次、总等待 20 秒；只读生产预检查已通过，当前请求指纹为 `4bb228109e65707d9608b984907b09f2a546f227735dfa60af5bb919820cf017`，但没有创建 session/run 或启动 solver。进入阶段 16 和该指纹均不构成执行授权，仍需新的明确确认。范围见 [阶段 16 文档](docs/audit-bound-real-pilot.md)。
 
 2026-09-21 用户原样确认阶段 16 审阅短语 `执行审计计划 a51d346ef1f8`。确认前来源 audit、请求、计划、预检查和 backend 配置重新核对未变化；会话 `stage16-stage14-hgs-20260918-v1` 随后串行执行 baseline/capacity30 各 1 次 HGS，两次均 `succeeded`，两个候选均通过独立复核。批次状态 `completed`，调用 2/2，预留等待 20/20 秒，实际耗时约 3.16711 秒，无重试或补跑。baseline 的 objective/dissatisfaction/emission 为 104.042/51.7808/7.99806，capacity30 为 104.038/51.7808/7.93847；单 case `n=1`，差异只作描述。闭环审计 `stage16-stage14-hgs-audit-20260918-v1` 为 `verified_complete`，80 个文件进入清单，保存审计再次只读重放一致。本次新增 Gemini/Gurobi 调用和许可证探测为 0，两个 solver 仓库保持干净。证据见 [阶段 16 完成记录](docs/audit-bound-real-pilot.md#真实小批完成记录)。
+
+2026-09-21 用户要求进入阶段 17：新增 `--mode dossier --execution-audit-id ... --dossier-id ... [--variant-case-id ...]`，从阶段 16 保存审计开始重新验证完整执行证据和实验报告，输出确定性事实、描述性观察、不能得出的结论、五个决策门及 `auto_execute=false` 的有限下一轮候选。零个或多个变体时必须显式选择，audit/报告漂移、未知变体或输出覆盖均拒绝。新增 5 项离线测试，完整 659 项通过；真实 dossier `stage17-stage16-decision-20260921-v1` 与再次只读重放一致，指纹 `65b5ed5235de27aaa476726392fd0bee52695c9a62ea0d8d4d968f91b249b179`，五门状态为 pass/pass/pass/caution/pass，建议 `collect_replicates`。候选为 baseline/capacity30 各 3 次 HGS、内部/外部 5/10 秒、最大 6 次、等待预算 60 秒；未做运行预检查、未授权且未执行。本阶段真实 Gemini、HGS/Gurobi 调用和许可证探测为 0，solver core 未修改。范围见 [阶段 17 文档](docs/audited-decision-dossier.md)。
 
 继续允许维护和修复现有 adapter、输入验证、能力评估、选择、受控执行、证据复核和情景分析。保持简单的 Python application service；可按实际职责拆分模块，不以“最小”为由省略必要的错误处理、证据保存或验证。
 
@@ -82,7 +84,7 @@ Python 代码使用 `src` layout、类型标注、Pydantic v2 和 pytest。避�
 
 ## 暂不纳入的范围
 
-阶段 7 已允许上述受限的真实 LLM REST 接入，阶段 8 已允许上述终端 CLI，阶段 9 允许上述自然语言实验计划服务和终端计划模式的离线实现，阶段 11 允许阶段 10 候选的离线接管和 fake 确认后闭环，阶段 12 允许受限 Gemini 决策会话，阶段 13 允许只读本地审计和证据清单，阶段 14 允许上述固定预算的真实 Gemini 影子会话但不允许 solver 执行，阶段 15 允许审计绑定接管的离线实现和 fake solver 闭环，阶段 16 允许执行后闭环审计的离线实现和 fake solver 验收。当前仍不引入 LLM/Agent SDK、RAG、多 Agent、HTTP API、Web UI、数据库、消息队列、云部署或新框架，不实现并行调度、自动恢复、自动重试、自动补跑、自动续费、自动调参或跨模型统一评分。这是工作范围限制，不是项目的永久架构结论；后续用户明确要求相应阶段时，先同步本文件与具体任务范围，再开展实现。阶段计划、候选文件、审计报告或“进入阶段”本身不构成未单独授权的真实 LLM 调用、许可证探测或真实 solver 批次的授权。
+阶段 7 已允许上述受限的真实 LLM REST 接入，阶段 8 已允许上述终端 CLI，阶段 9 允许上述自然语言实验计划服务和终端计划模式的离线实现，阶段 11 允许阶段 10 候选的离线接管和 fake 确认后闭环，阶段 12 允许受限 Gemini 决策会话，阶段 13 允许只读本地审计和证据清单，阶段 14 允许上述固定预算的真实 Gemini 影子会话但不允许 solver 执行，阶段 15 允许审计绑定接管的离线实现和 fake solver 闭环，阶段 16 允许执行后闭环审计的离线实现和 fake solver 验收，阶段 17 允许从闭环审计生成确定性 dossier 和非执行候选。当前仍不引入 LLM/Agent SDK、RAG、多 Agent、HTTP API、Web UI、数据库、消息队列、云部署或新框架，不实现并行调度、自动恢复、自动重试、自动补跑、自动续费、自动调参或跨模型统一评分。这是工作范围限制，不是项目的永久架构结论；后续用户明确要求相应阶段时，先同步本文件与具体任务范围，再开展实现。阶段计划、候选文件、dossier、审计报告或“进入阶段”本身不构成未单独授权的真实 LLM 调用、许可证探测或真实 solver 批次的授权。
 
 ## 三个仓库的关系
 

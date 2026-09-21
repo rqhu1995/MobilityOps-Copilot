@@ -296,3 +296,18 @@ session 开始重放来源 Copilot audit、来源计划与审阅、外层 audit-
 20/20 秒，实际耗时约 3.16711 秒。执行后闭环审计为 `verified_complete`，80 个证据文件进入清单，
 保存结果再次只读重放一致。本次没有新增 Gemini/Gurobi 调用、许可证探测、重试或补跑，两个
 solver 仓库保持干净。单 case `n=1` 的差异仅是描述性观测，不能证明因果或最优性。
+
+## 当前阶段 17：审计证据绑定的 Decision Dossier v1
+
+阶段 17 新增非交互 `--mode dossier --execution-audit-id ... --dossier-id ...`。入口重新运行阶段
+16 闭环审计、核对保存 audit 和重新生成的实验报告，再为一个明确变体输出已复核事实、描述性
+观察、不能得出的结论，以及证据完整性、执行完整性、比较有效性、证据强度和下一步五个决策门。
+
+任何 block 会转为 `review_blockers`；仅有样本强度 caution 时转为 `collect_replicates`；全部通过
+才进入 `human_decision_review`。无 blocker 时复用阶段 10 规则生成两个 case 各 3 次的候选，
+始终 `auto_execute=false`，不会预检查或执行。
+
+离线新增 5 项测试，完整 **659 项测试通过**。真实阶段 16 证据已生成 dossier
+`stage17-stage16-decision-20260921-v1`，五个门为 pass/pass/pass/caution/pass，建议收集重复样本；
+下一轮候选为 6 次 HGS、60 秒等待预算，尚未授权。本阶段真实 Gemini、HGS/Gurobi 调用和许可证
+探测均为 0。详细契约见[阶段 17 文档](audited-decision-dossier.md)。
