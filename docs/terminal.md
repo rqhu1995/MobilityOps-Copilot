@@ -377,3 +377,22 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 `dossier.json`、`dossier.md` 与 `next-plan.json`。下一轮文件始终 `auto_execute=false`；生成文件
 不构成预检查或执行授权。完整决策门和阶段 16 真实 dossier 见
 [阶段 17 文档](audited-decision-dossier.md)。
+
+## 接管 Dossier 中的有限重复实验
+
+阶段 18 将阶段 17 的 `collect_replicates` 候选接入全计划预检查和新确认：
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode dossier-campaign \
+  --source-dossier-id <decision-dossier-id> \
+  --session-id <new-session-id> \
+  --hgs-repo-path /home/runqiu/BRPWR-HGSADC-SBC \
+  --gurobi-repo-path /home/runqiu/BRPWR-Gurobi \
+  --runs-dir /home/runqiu/MobilityOps-Copilot/runs
+```
+
+入口重新验证 Dossier、来源执行审计、报告及候选，展示计划调用数、等待预算和 backend 配置，
+然后等待 `执行 Dossier 重复实验 <12 位审阅指纹>`。候选文件中的文字或普通“执行”不会启动
+solver；确认前任何证据或环境漂移都会关闭执行。阶段 17 的真实 6 次 HGS 候选尚未授权。
+完整契约见[阶段 18 文档](dossier-replication-campaign.md)。

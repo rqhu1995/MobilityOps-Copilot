@@ -24,6 +24,9 @@ from mobilityops.services.copilot_terminal_session import CopilotTerminalSession
 from mobilityops.services.gemini_intake import GeminiBudgetConfig
 from mobilityops.services.decision_terminal_session import DecisionTerminalSession
 from mobilityops.services.decision_dossier import DecisionDossierService
+from mobilityops.services.dossier_campaign_terminal_session import (
+    DossierCampaignTerminalSession,
+)
 from mobilityops.services.experiment_terminal_session import ExperimentTerminalSession
 from mobilityops.services.gurobi_inputs import strict_json
 from mobilityops.services.next_experiment_terminal_session import NextExperimentTerminalSession
@@ -49,6 +52,7 @@ def parser() -> argparse.ArgumentParser:
         choices=(
             "scenario", "experiment", "analysis", "next-experiment", "copilot",
             "audit", "audited-execution", "audited-execution-audit", "dossier",
+            "dossier-campaign",
         ),
         default="scenario",
         help=("scenario=单场景（默认）；experiment=有限重复实验计划；"
@@ -56,7 +60,8 @@ def parser() -> argparse.ArgumentParser:
               "copilot=统一 Gemini 决策会话；audit=离线审计 Copilot 会话；"
               "audited-execution=重新审计后接管已审阅计划；"
               "audited-execution-audit=离线复核接管后的完整执行；"
-              "dossier=生成审计绑定的决策证据包"),
+              "dossier=生成审计绑定的决策证据包；"
+              "dossier-campaign=接管决策证据包中的有限重复实验"),
     )
     result.add_argument("--experiment-id", help="analysis 要复核或 copilot 初始载入的实验 ID")
     result.add_argument("--proposal", type=Path, help="next-experiment 模式的阶段 10 候选 JSON")
@@ -68,6 +73,9 @@ def parser() -> argparse.ArgumentParser:
     )
     result.add_argument("--execution-audit-id", help="dossier 的来源执行审计 ID")
     result.add_argument("--dossier-id", help="dossier 的新输出 ID")
+    result.add_argument(
+        "--source-dossier-id", help="dossier-campaign 的来源决策证据包 ID"
+    )
     result.add_argument("--variant-case-id", help="dossier 明确选择的变体 case ID")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
     result.add_argument("--budget-hkd", type=float, default=1, help="本会话 LLM 费用上限，0 < x ≤ 10（默认 1 HKD）")
@@ -101,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.baseline, args.experiment_id, args.proposal, args.backend,
                 args.audited_execution_session_id,
                 args.execution_audit_id, args.dossier_id, args.variant_case_id,
+                args.source_dossier_id,
                 args.hgs_repo_path, args.gurobi_repo_path, args.gurobi_python,
                 args.gurobi_time_interval_sec, args.gurobi_threads,
             )):
@@ -137,6 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.copilot_session_id, args.hgs_repo_path,
                 args.gurobi_repo_path, args.gurobi_python,
                 args.execution_audit_id, args.dossier_id, args.variant_case_id,
+                args.source_dossier_id,
                 args.gurobi_time_interval_sec, args.gurobi_threads,
             )):
                 raise ValueError(
@@ -176,6 +186,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.audited_execution_session_id, args.hgs_repo_path,
                 args.gurobi_repo_path, args.gurobi_python,
                 args.gurobi_time_interval_sec, args.gurobi_threads,
+                args.source_dossier_id,
             )):
                 raise ValueError(
                     "dossier 只读取已审计证据；不要提供会话、计划或 solver 参数"
@@ -206,10 +217,60 @@ def main(argv: Sequence[str] | None = None) -> int:
                 flush=True,
             )
             return 0
-        if args.execution_audit_id or args.dossier_id or args.variant_case_id:
+        if args.mode == "dossier-campaign":
+            if not args.source_dossier_id:
+                raise ValueError("dossier-campaign 模式需要 --source-dossier-id")
+            if any((
+                args.execution_audit_id, args.dossier_id, args.variant_case_id,
+                args.copilot_session_id, args.audit_id,
+                args.audited_execution_session_id, args.baseline,
+                args.experiment_id, args.proposal, args.backend,
+            )):
+                raise ValueError(
+                    "dossier-campaign 从 Dossier 读取计划；不要提供其他来源、"
+                    "计划、场景或 backend 参数"
+                )
+            settings = Settings.from_env(environment)
+            if args.gurobi_python is None and (
+                args.gurobi_time_interval_sec is not None
+                or args.gurobi_threads is not None
+            ):
+                raise ValueError(
+                    "请用 --gurobi-python 显式注册候选需要的 Gurobi adapter"
+                )
+            gurobi = None
+            if args.gurobi_python is not None:
+                gurobi = GurobiBackend(
+                    settings,
+                    options=GurobiOptions(
+                        python_executable=args.gurobi_python.expanduser(),
+                        time_interval_sec=(
+                            args.gurobi_time_interval_sec
+                            if args.gurobi_time_interval_sec is not None
+                            else 600
+                        ),
+                        threads=(
+                            args.gurobi_threads
+                            if args.gurobi_threads is not None
+                            else 1
+                        ),
+                    ),
+                )
+            session_id = args.session_id or (
+                f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
+            )
+            return DossierCampaignTerminalSession(
+                SolverService(settings, gurobi_backend=gurobi),
+                io=Console(),
+                session_id=session_id,
+                dossier_id=args.source_dossier_id,
+            ).run()
+        if (
+            args.execution_audit_id or args.dossier_id or args.variant_case_id
+            or args.source_dossier_id
+        ):
             raise ValueError(
-                "--execution-audit-id、--dossier-id 和 --variant-case-id "
-                "只用于 dossier 模式"
+                "Dossier 参数只用于 dossier 或 dossier-campaign 模式"
             )
         if args.mode == "audited-execution":
             if not args.copilot_session_id or not args.audit_id:

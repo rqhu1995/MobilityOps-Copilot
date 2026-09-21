@@ -36,7 +36,15 @@ cp .env.example .env
 
 `.env` 被 Git 忽略。当前代码只读取进程环境变量，不自动加载 `.env`，以避免引入额外依赖；启动命令或后续 CLI 应显式提供这些变量。
 
-## 当前阶段：17，审计证据绑定的 Decision Dossier v1
+## 当前阶段：18，Dossier 绑定的有限重复实验接管
+
+阶段 18 新增交互式 `--mode dossier-campaign`：它重新验证阶段 17 Dossier、阶段 16 执行审计、
+来源报告和 `next-plan`，再完成全计划预检查，展示调用数、等待预算及 backend 配置，并生成绑定
+全部来源的一次性确认。fake HGS 已覆盖 baseline/capacity30 各 3 次的 6 次闭环；真实 6 次 HGS
+的只读预检查已通过，但仍未授权、未执行。范围、命令和拒绝条件见
+[阶段 18 文档](docs/dossier-replication-campaign.md)。
+
+## 阶段 17：审计证据绑定的 Decision Dossier v1
 
 阶段 17 新增非交互 `--mode dossier`，将阶段 16 的 `verified_complete` 执行审计重新验证后，输出
 事实、描述性观察、不能得出的结论、五个决策门和 `auto_execute=false` 的有限下一轮候选。真实

@@ -311,3 +311,16 @@ solver 仓库保持干净。单 case `n=1` 的差异仅是描述性观测，不�
 `stage17-stage16-decision-20260921-v1`，五个门为 pass/pass/pass/caution/pass，建议收集重复样本；
 下一轮候选为 6 次 HGS、60 秒等待预算，尚未授权。本阶段真实 Gemini、HGS/Gurobi 调用和许可证
 探测均为 0。详细契约见[阶段 17 文档](audited-decision-dossier.md)。
+
+## 当前阶段 18：Dossier 绑定的有限重复实验接管
+
+阶段 18 新增交互式 `--mode dossier-campaign --source-dossier-id ...`。入口重新运行阶段 16 闭环
+审计，核对阶段 17 Dossier 指纹及保存候选，然后复用阶段 11 完成完整计划导入、全场景预检查和
+运行配置绑定。终端展示 6 次调用、60 秒等待预算、case 及 backend 配置，只接受绑定当次审阅
+指纹的一次性确认。
+
+确认前 Dossier、audit、候选、预检查或配置变化都会使旧确认失效。确认后外层谱系把 Dossier、
+执行审计、接管请求、子实验和确定性报告连接起来；取消、错误确认或篡改不会调用 solver。离线
+新增 7 项测试，fake HGS 完成 baseline/capacity30 各 3 次并全部独立复核通过。真实阶段 17
+候选的无写入预检查已通过，但仍未授权、未执行；开发阶段新增真实 Gemini、HGS/Gurobi 调用和
+许可证探测均为 0。详细契约见[阶段 18 文档](dossier-replication-campaign.md)。
