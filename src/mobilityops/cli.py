@@ -21,15 +21,24 @@ from mobilityops.services.audited_execution_terminal_session import (
 )
 from mobilityops.services.copilot_audit import CopilotAuditService
 from mobilityops.services.copilot_terminal_session import CopilotTerminalSession
-from mobilityops.services.gemini_intake import GeminiBudgetConfig
+from mobilityops.services.gemini_intake import (
+    GeminiBudgetConfig,
+    GeminiDecisionCopilotV2Interpreter,
+    GeminiScenarioInterpreter,
+)
 from mobilityops.services.decision_terminal_session import DecisionTerminalSession
 from mobilityops.services.decision_dossier import DecisionDossierService
+from mobilityops.services.decision_copilot_v2 import DecisionCopilotV2Service
+from mobilityops.services.dossier_campaign_audit import DossierCampaignAuditService
 from mobilityops.services.dossier_campaign_terminal_session import (
     DossierCampaignTerminalSession,
 )
 from mobilityops.services.experiment_terminal_session import ExperimentTerminalSession
 from mobilityops.services.gurobi_inputs import strict_json
 from mobilityops.services.next_experiment_terminal_session import NextExperimentTerminalSession
+from mobilityops.services.replicated_decision_dossier import (
+    ReplicatedDecisionDossierService,
+)
 from mobilityops.services.solver_service import SolverService
 from mobilityops.services.terminal_session import TerminalSession, terminal_text
 from mobilityops.solvers.gurobi.backend import GurobiBackend
@@ -52,7 +61,7 @@ def parser() -> argparse.ArgumentParser:
         choices=(
             "scenario", "experiment", "analysis", "next-experiment", "copilot",
             "audit", "audited-execution", "audited-execution-audit", "dossier",
-            "dossier-campaign",
+            "dossier-campaign", "campaign-decision", "decision-copilot-v2",
         ),
         default="scenario",
         help=("scenario=单场景（默认）；experiment=有限重复实验计划；"
@@ -61,7 +70,9 @@ def parser() -> argparse.ArgumentParser:
               "audited-execution=重新审计后接管已审阅计划；"
               "audited-execution-audit=离线复核接管后的完整执行；"
               "dossier=生成审计绑定的决策证据包；"
-              "dossier-campaign=接管决策证据包中的有限重复实验"),
+              "dossier-campaign=接管决策证据包中的有限重复实验；"
+              "campaign-decision=审计重复实验并刷新决策证据包；"
+              "decision-copilot-v2=生成并复核 Gemini 决策简报"),
     )
     result.add_argument("--experiment-id", help="analysis 要复核或 copilot 初始载入的实验 ID")
     result.add_argument("--proposal", type=Path, help="next-experiment 模式的阶段 10 候选 JSON")
@@ -75,6 +86,14 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--dossier-id", help="dossier 的新输出 ID")
     result.add_argument(
         "--source-dossier-id", help="dossier-campaign 的来源决策证据包 ID"
+    )
+    result.add_argument(
+        "--dossier-campaign-session-id",
+        help="campaign-decision 要审计的阶段 18 会话 ID",
+    )
+    result.add_argument(
+        "--replicated-dossier-id",
+        help="decision-copilot-v2 的重复实验决策证据包 ID",
     )
     result.add_argument("--variant-case-id", help="dossier 明确选择的变体 case ID")
     result.add_argument("--backend", choices=[b.value for b in BackendName], help="指定 backend；Gurobi 需显式配置 --gurobi-python")
@@ -93,7 +112,9 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser()
     args = arguments.parse_args(argv)
-    if args.mode not in {"audit", "audited-execution-audit", "dossier"} and not sys.stdin.isatty():
+    if args.mode not in {
+        "audit", "audited-execution-audit", "dossier", "campaign-decision"
+    } and not sys.stdin.isatty():
         arguments.error("此入口需要交互终端；不接受管道中的预填确认。Python 自动化请使用现有 service API。")
     try:
         environment = {key: os.environ[key] for key in
@@ -102,6 +123,140 @@ def main(argv: Sequence[str] | None = None) -> int:
                            ("MOBILITYOPS_RUNS_DIR", args.runs_dir)):
             if value is not None:
                 environment[key] = str(value)
+        if args.mode == "campaign-decision":
+            if (
+                not args.dossier_campaign_session_id
+                or not args.audit_id
+                or not args.dossier_id
+            ):
+                raise ValueError(
+                    "campaign-decision 需要 --dossier-campaign-session-id、"
+                    "--audit-id 和 --dossier-id"
+                )
+            if args.session_id is not None or any((
+                args.baseline, args.experiment_id, args.proposal, args.backend,
+                args.copilot_session_id, args.audited_execution_session_id,
+                args.execution_audit_id, args.source_dossier_id,
+                args.replicated_dossier_id, args.hgs_repo_path,
+                args.gurobi_repo_path, args.gurobi_python,
+                args.gurobi_time_interval_sec, args.gurobi_threads,
+            )):
+                raise ValueError(
+                    "campaign-decision 只读取已完成的本地 campaign；"
+                    "不要提供交互、其他来源或 solver 参数"
+                )
+            runs_dir = (
+                Path(environment["MOBILITYOPS_RUNS_DIR"]).expanduser()
+                if environment.get("MOBILITYOPS_RUNS_DIR")
+                else Path.cwd() / "runs"
+            )
+            settings = Settings(
+                hgs_repo_path=runs_dir / ".campaign-audit-only/hgs-unused",
+                gurobi_repo_path=runs_dir / ".campaign-audit-only/gurobi-unused",
+                runs_dir=runs_dir,
+            )
+            audit = DossierCampaignAuditService(settings).write_report(
+                args.dossier_campaign_session_id,
+                audit_id=args.audit_id,
+            )
+            dossier = ReplicatedDecisionDossierService(settings).write(
+                args.audit_id,
+                dossier_id=args.dossier_id,
+                variant_case_id=args.variant_case_id,
+            )
+            print(
+                f"重复实验决策闭环完成：{audit.audit_status}；调用 "
+                f"{audit.calls_invoked}；复核候选 {audit.verified_candidates}。\n"
+                f"新 Dossier：{dossier.recommendation}；指纹 "
+                f"{dossier.dossier_sha256}。",
+                flush=True,
+            )
+            return 0
+        if args.mode == "decision-copilot-v2":
+            if not args.replicated_dossier_id:
+                raise ValueError(
+                    "decision-copilot-v2 需要 --replicated-dossier-id"
+                )
+            if any((
+                args.baseline, args.experiment_id, args.proposal, args.backend,
+                args.copilot_session_id, args.audit_id,
+                args.audited_execution_session_id, args.execution_audit_id,
+                args.dossier_id, args.source_dossier_id,
+                args.dossier_campaign_session_id, args.variant_case_id,
+                args.hgs_repo_path, args.gurobi_repo_path, args.gurobi_python,
+                args.gurobi_time_interval_sec, args.gurobi_threads,
+            )):
+                raise ValueError(
+                    "decision-copilot-v2 只读取 replicated dossier；"
+                    "不要提供实验、audit 或 solver 参数"
+                )
+            budget = GeminiBudgetConfig(
+                budget_hkd=args.budget_hkd,
+                max_calls=args.max_calls,
+            )
+            if budget.max_calls != 4 or budget.budget_hkd > 1:
+                raise ValueError(
+                    "Decision Copilot v2 固定最多 4 次调用、预算不超过 1 HKD"
+                )
+            if budget.reservation_hkd * 2 > Decimal(str(budget.budget_hkd)):
+                raise ValueError("预算不足以预留固定的两次模型调用")
+            runs_dir = (
+                Path(environment["MOBILITYOPS_RUNS_DIR"]).expanduser()
+                if environment.get("MOBILITYOPS_RUNS_DIR")
+                else Path.cwd() / "runs"
+            )
+            settings = Settings(
+                hgs_repo_path=runs_dir / ".decision-v2-only/hgs-unused",
+                gurobi_repo_path=runs_dir / ".decision-v2-only/gurobi-unused",
+                runs_dir=runs_dir,
+            )
+            session_id = args.session_id or (
+                f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid4().hex[:8]}"
+            )
+            service = DecisionCopilotV2Service(settings)
+            request = service.prepare(
+                args.replicated_dossier_id,
+                session_id=session_id,
+                budget_hkd=budget.budget_hkd,
+                max_calls=budget.max_calls,
+            )
+            confirmation = f"启用 Decision Copilot v2 {request.request_sha256[:12]}"
+            print(
+                f"模型={budget.model}；最多 {budget.max_calls} 次；预算 "
+                f"{budget.budget_hkd:g} HKD；固定工作流实际调用 2 次。\n"
+                f"Dossier={request.source.dossier_id} / "
+                f"{request.source.dossier_sha256}\n不会调用或授权 solver。",
+                flush=True,
+            )
+            answer = input(
+                f'输入“{confirmation}”调用 Gemini；其他输入取消：'
+            ).strip()
+            if answer != confirmation:
+                print("已取消；没有创建模型预算或调用 Gemini。", flush=True)
+                return 0
+            budget_id = f"decision-v2-{session_id}"
+            GeminiScenarioInterpreter.create_budget(
+                settings, budget_id=budget_id, config=budget
+            )
+            report = service.execute(
+                request,
+                confirmed_request_sha256=request.request_sha256,
+                interpreter=GeminiDecisionCopilotV2Interpreter(
+                    settings, budget_id=budget_id
+                ),
+            )
+            print(
+                f"Decision Copilot v2 完成：{report.status}；"
+                f"建议 {report.brief.outcome}；模型调用 {report.calls_invoked}；"
+                "solver 调用 0。",
+                flush=True,
+            )
+            return 0
+        if args.dossier_campaign_session_id or args.replicated_dossier_id:
+            raise ValueError(
+                "--dossier-campaign-session-id 和 --replicated-dossier-id "
+                "只用于阶段 19/20 模式"
+            )
         if args.mode == "audit":
             if not args.copilot_session_id:
                 raise ValueError("audit 模式需要 --copilot-session-id")

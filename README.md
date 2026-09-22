@@ -36,7 +36,15 @@ cp .env.example .env
 
 `.env` 被 Git 忽略。当前代码只读取进程环境变量，不自动加载 `.env`，以避免引入额外依赖；启动命令或后续 CLI 应显式提供这些变量。
 
-## 当前阶段：18，Dossier 绑定的有限重复实验接管
+## 当前阶段：20，Gemini Decision Copilot v2
+
+阶段 19 已完成 Dossier campaign 的执行后闭环审计和 replicated dossier 离线实现；阶段 20 已
+完成基于该 Dossier 的 Gemini 两遍式决策简报协议。fake HGS/Gemini 覆盖 6 次重复实验、逐文件
+审计、五门刷新、简报和独立模型复核。真实 6 次 HGS 尚未取得阶段 18 当次确认，因此真实阶段
+19/20 产物和真实 Gemini 调用均为 0。详见[阶段 19 文档](docs/replicated-decision-gate.md)和
+[阶段 20 文档](docs/gemini-decision-copilot-v2.md)。
+
+## 阶段 18：Dossier 绑定的有限重复实验接管
 
 阶段 18 新增交互式 `--mode dossier-campaign`：它重新验证阶段 17 Dossier、阶段 16 执行审计、
 来源报告和 `next-plan`，再完成全计划预检查，展示调用数、等待预算及 backend 配置，并生成绑定

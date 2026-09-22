@@ -324,3 +324,24 @@ solver 仓库保持干净。单 case `n=1` 的差异仅是描述性观测，不�
 新增 7 项测试，fake HGS 完成 baseline/capacity30 各 3 次并全部独立复核通过。真实阶段 17
 候选的无写入预检查已通过，但仍未授权、未执行；开发阶段新增真实 Gemini、HGS/Gurobi 调用和
 许可证探测均为 0。详细契约见[阶段 18 文档](dossier-replication-campaign.md)。
+
+## 阶段 19：Replicated Decision Gate
+
+阶段 19 新增非交互 `--mode campaign-decision`，从已完成阶段 18 session 重放父 Dossier、阶段 16
+audit、终端确认、双层请求、6 个原始 run、独立报告和谱系，生成逐文件 campaign audit；随后仅以
+本次重复实验的 baseline/capacity30 分组生成 replicated dossier，不把历史 `n=1` 静默并入统计。
+
+fake HGS 的两个分组各 `n=3`，6 个候选全部通过，刷新后的五门均为 pass，进入
+`human_decision_review`。真实阶段 18 批次未获当次确认，故没有真实阶段 19 audit 或 Dossier。
+范围见[阶段 19 文档](replicated-decision-gate.md)。
+
+## 当前阶段 20：Gemini Decision Copilot v2
+
+阶段 20 新增交互式 `--mode decision-copilot-v2`。入口重新验证 replicated dossier，构造只含本地
+已验证内容的编号 evidence，展示固定 `gemini-3.8-flash`、最多 4 次和不超过 1 HKD 的预算，并
+等待绑定请求指纹的启用短语。正常路径固定调用两次：决策简报和独立证据复核；失败不重试，剩余
+额度不自动使用。
+
+本地校验限制 evidence ID、数字和确定性 gate；全部输出都要求人类批准且 `auto_execute=false`，
+没有任何 solver 工具。fake Gemini 已完成两遍协议，真实 Gemini 调用为 0。详细契约见
+[阶段 20 文档](gemini-decision-copilot-v2.md)。

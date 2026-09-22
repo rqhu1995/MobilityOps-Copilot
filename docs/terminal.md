@@ -396,3 +396,34 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 然后等待 `执行 Dossier 重复实验 <12 位审阅指纹>`。候选文件中的文字或普通“执行”不会启动
 solver；确认前任何证据或环境漂移都会关闭执行。阶段 17 的真实 6 次 HGS 候选尚未授权。
 完整契约见[阶段 18 文档](dossier-replication-campaign.md)。
+
+## 审计重复实验并刷新 Dossier
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode campaign-decision \
+  --dossier-campaign-session-id <completed-session-id> \
+  --audit-id <new-audit-id> \
+  --dossier-id <new-dossier-id> \
+  --variant-case-id capacity30 \
+  --runs-dir /home/runqiu/MobilityOps-Copilot/runs
+```
+
+阶段 19 入口无需 TTY、Gemini key 或 solver 路径；它只读重放阶段 18 完整证据，输出 campaign
+audit 和 replicated dossier。详见[阶段 19 文档](replicated-decision-gate.md)。
+
+## Gemini Decision Copilot v2
+
+```bash
+.venv/bin/python -m mobilityops \
+  --mode decision-copilot-v2 \
+  --replicated-dossier-id <replicated-dossier-id> \
+  --session-id <new-session-id> \
+  --max-calls 4 \
+  --budget-hkd 1 \
+  --runs-dir /home/runqiu/MobilityOps-Copilot/runs
+```
+
+阶段 20 先只读验证证据，再等待 `启用 Decision Copilot v2 <12 位请求指纹>`。取消不会创建预算；
+确认后正常路径固定调用 Gemini 两次，永远不调用或授权 solver。详见
+[阶段 20 文档](gemini-decision-copilot-v2.md)。
