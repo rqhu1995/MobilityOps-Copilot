@@ -56,6 +56,21 @@ replicated dossier
 fake Gemini 已覆盖正常两遍审阅、确定性 gate 越界、无来源数字、错误确认和终端取消；正常路径
 恰好产生两次 `countTokens + interactions`，provider 工具调用和 solver 调用均为 0。
 
-本阶段没有真实 replicated dossier，因为真实阶段 18 的 6 次 HGS 尚未确认执行。因此没有调用
-真实 Gemini，也没有创建真实 Gemini 预算。真实调用需要先有阶段 19 `verified_complete` audit
-和 replicated dossier，再输入当次启用短语。
+## 真实两遍式决策审阅完成记录
+
+2026-09-22，入口重新验证 replicated dossier `stage19-stage18-decision-20260922-v1` 后生成请求
+SHA-256 `aaf7154ad07e50bbcf0f0418df0c71d79516d4a8eb1e8865cae5de652834fb68`。用户输入一次性确认
+`启用 Decision Copilot v2 aaf7154ad07e`，会话 `stage20-stage19-gemini-20260922-v1` 随后固定
+调用 `gemini-3.8-flash` 两次，未使用剩余两次上限，也没有重试。
+
+第一遍简报提出 `adopt_variant`；第二遍复核判断该建议把描述性结果提升成了采用 capacity30 的
+业务结论，与确定性的 `human_decision_review` 边界以及“不能证明统计显著性、因果效应或全局
+最优性”的限制冲突，因此返回 `rejected`。最终会话状态为 `review_rejected`。这是协议预期的
+失败关闭：没有形成采用或部署决定，输出仍为 `human_approval_required=true`、
+`auto_execute=false`，且不会自动修订或发起第三次调用。
+
+两次调用共使用 6,880 个输入 token、519 个可见输出 token、3,023 个 thinking token，总计
+10,422 token；usage 估算 0.147540 HKD，预留 0.43776 HKD，低于 1 HKD 上限。provider 工具
+调用和 solver 调用均为 0；没有调用 Gurobi、探测许可证或修改 solver core。简报 SHA-256 为
+`e9e3065fe5759888f0e7fc53a26ceab7e2ef095d8df6338ee063f0754305eee3`，复核 SHA-256 为
+`c4165d09656dc03a098277df3142e6f1f36a3b399b6993905eb54aba98fc6588`。

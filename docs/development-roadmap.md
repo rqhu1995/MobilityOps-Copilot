@@ -309,8 +309,9 @@ solver 仓库保持干净。单 case `n=1` 的差异仅是描述性观测，不�
 
 离线新增 5 项测试，完整 **659 项测试通过**。真实阶段 16 证据已生成 dossier
 `stage17-stage16-decision-20260921-v1`，五个门为 pass/pass/pass/caution/pass，建议收集重复样本；
-下一轮候选为 6 次 HGS、60 秒等待预算，尚未授权。本阶段真实 Gemini、HGS/Gurobi 调用和许可证
-探测均为 0。详细契约见[阶段 17 文档](audited-decision-dossier.md)。
+下一轮候选为 6 次 HGS、60 秒等待预算；阶段 17 完成时尚未授权，随后已在阶段 18 取得新确认。
+阶段 17 本身的真实 Gemini、HGS/Gurobi 调用和许可证探测均为 0。详细契约见
+[阶段 17 文档](audited-decision-dossier.md)。
 
 ## 当前阶段 18：Dossier 绑定的有限重复实验接管
 
@@ -321,9 +322,9 @@ solver 仓库保持干净。单 case `n=1` 的差异仅是描述性观测，不�
 
 确认前 Dossier、audit、候选、预检查或配置变化都会使旧确认失效。确认后外层谱系把 Dossier、
 执行审计、接管请求、子实验和确定性报告连接起来；取消、错误确认或篡改不会调用 solver。离线
-新增 7 项测试，fake HGS 完成 baseline/capacity30 各 3 次并全部独立复核通过。真实阶段 17
-候选的无写入预检查已通过，但仍未授权、未执行；开发阶段新增真实 Gemini、HGS/Gurobi 调用和
-许可证探测均为 0。详细契约见[阶段 18 文档](dossier-replication-campaign.md)。
+新增 7 项测试，fake HGS 完成 baseline/capacity30 各 3 次并全部独立复核通过。2026-09-22，
+真实阶段 17 候选取得当次确认后也已完成 baseline/capacity30 各 3 次 HGS；6/6 次成功，6/6 个
+候选通过独立复核。详细契约与完成记录见[阶段 18 文档](dossier-replication-campaign.md)。
 
 ## 阶段 19：Replicated Decision Gate
 
@@ -331,9 +332,9 @@ solver 仓库保持干净。单 case `n=1` 的差异仅是描述性观测，不�
 audit、终端确认、双层请求、6 个原始 run、独立报告和谱系，生成逐文件 campaign audit；随后仅以
 本次重复实验的 baseline/capacity30 分组生成 replicated dossier，不把历史 `n=1` 静默并入统计。
 
-fake HGS 的两个分组各 `n=3`，6 个候选全部通过，刷新后的五门均为 pass，进入
-`human_decision_review`。真实阶段 18 批次未获当次确认，故没有真实阶段 19 audit 或 Dossier。
-范围见[阶段 19 文档](replicated-decision-gate.md)。
+fake HGS 的两个分组各 `n=3`，6 个候选全部通过。真实阶段 18 完成后，阶段 19 也已生成
+`verified_complete` campaign audit 和 replicated dossier；真实分组各 `n=3`，刷新后的五门均为
+pass，进入 `human_decision_review`。范围见[阶段 19 文档](replicated-decision-gate.md)。
 
 ## 当前阶段 20：Gemini Decision Copilot v2
 
@@ -343,5 +344,6 @@ fake HGS 的两个分组各 `n=3`，6 个候选全部通过，刷新后的五门
 额度不自动使用。
 
 本地校验限制 evidence ID、数字和确定性 gate；全部输出都要求人类批准且 `auto_execute=false`，
-没有任何 solver 工具。fake Gemini 已完成两遍协议，真实 Gemini 调用为 0。详细契约见
-[阶段 20 文档](gemini-decision-copilot-v2.md)。
+没有任何 solver 工具。fake Gemini 已完成两遍协议；2026-09-22 的真实两次调用中，独立复核
+拒绝了第一遍证据不足的 `adopt_variant`，会话以 `review_rejected` 安全停止，没有 solver 调用或
+自动重试。详细契约与费用见[阶段 20 文档](gemini-decision-copilot-v2.md)。

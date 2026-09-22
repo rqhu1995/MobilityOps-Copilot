@@ -71,3 +71,21 @@ CLI 路由，以及 fake HGS 的 baseline/capacity30 各 3 次完整闭环。fak
 `e408055eaae28ed4653691f1ae6993a32519b4ff19c0cb178d131f4bf26309b9`。检查前后 `runs/` 文件数
 均为 1589，两个 solver 仓库保持干净；没有创建 session、request、experiment 或 report。这个
 指纹不是终端确认短语，后续真实会话仍会基于当时证据和配置生成新的审阅指纹。
+
+## 真实重复实验完成记录
+
+2026-09-22，用户在新交互会话中输入一次性确认短语
+`执行 Dossier 重复实验 cb7ba8da0de9`。会话 `stage18-stage17-hgs-20260922-v1` 重新核对来源
+Dossier、阶段 16 audit、候选、全计划预检查和 HGS 配置后，创建实验
+`campaign-stage18-stage17-hgs-20260922-v1`。批次串行执行 baseline/capacity30 各 3 次；6/6 次
+均为 `succeeded`，6/6 个候选全部通过独立复核，没有重试或补跑。
+
+baseline 的 objective 中位数为 104.04（104.039–104.042），不满意度中位数为 51.7808，排放
+中位数为 7.97731（7.94776–7.99806）；capacity30 三次的对应值均为 104.038、51.7808 和
+7.93847。capacity30 相对 baseline 的中位数观测差为 objective -0.002、不满意度 0、排放
+-0.03884；这些只是本批描述性观察，不证明统计显著性、因果效应或全局最优性。
+
+保存报告再次只读重放一致，报告 SHA-256 为
+`3051383c5de205d923857545eb437867651b3714ceb08d4a06c0cc745d4494e0`，谱系 SHA-256 为
+`ae3a3eb226499f0a5bbf03df2af4bf622ba16b265289b46ca6c583acc52caf8c`。本批没有调用 Gemini、
+Gurobi 或探测许可证，也没有修改 solver core。

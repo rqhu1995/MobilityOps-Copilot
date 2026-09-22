@@ -38,26 +38,27 @@ cp .env.example .env
 
 ## 当前阶段：20，Gemini Decision Copilot v2
 
-阶段 19 已完成 Dossier campaign 的执行后闭环审计和 replicated dossier 离线实现；阶段 20 已
-完成基于该 Dossier 的 Gemini 两遍式决策简报协议。fake HGS/Gemini 覆盖 6 次重复实验、逐文件
-审计、五门刷新、简报和独立模型复核。真实 6 次 HGS 尚未取得阶段 18 当次确认，因此真实阶段
-19/20 产物和真实 Gemini 调用均为 0。详见[阶段 19 文档](docs/replicated-decision-gate.md)和
-[阶段 20 文档](docs/gemini-decision-copilot-v2.md)。
+阶段 18–20 的真实受控链路已经完成。阶段 18 按一次性确认串行执行 baseline/capacity30 各 3 次
+HGS，6 个候选全部通过独立复核；阶段 19 的 campaign audit 为 `verified_complete`，刷新后的五个
+决策门均为 `pass`，进入 `human_decision_review`。阶段 20 随后调用 `gemini-3.8-flash` 两次：第一
+遍提出 `adopt_variant`，第二遍因该结论超出描述性证据边界而返回 `rejected`。系统以
+`review_rejected` 失败关闭，没有形成采用决策，也没有调用 solver。详见
+[阶段 19 文档](docs/replicated-decision-gate.md)和[阶段 20 文档](docs/gemini-decision-copilot-v2.md)。
 
 ## 阶段 18：Dossier 绑定的有限重复实验接管
 
 阶段 18 新增交互式 `--mode dossier-campaign`：它重新验证阶段 17 Dossier、阶段 16 执行审计、
 来源报告和 `next-plan`，再完成全计划预检查，展示调用数、等待预算及 backend 配置，并生成绑定
-全部来源的一次性确认。fake HGS 已覆盖 baseline/capacity30 各 3 次的 6 次闭环；真实 6 次 HGS
-的只读预检查已通过，但仍未授权、未执行。范围、命令和拒绝条件见
+全部来源的一次性确认。真实批次已按确认完成 baseline/capacity30 各 3 次，6 次 HGS 均成功且
+全部通过独立复核；该批只提供描述性观察，不证明因果、统计显著性或全局最优。范围、命令和拒绝条件见
 [阶段 18 文档](docs/dossier-replication-campaign.md)。
 
 ## 阶段 17：审计证据绑定的 Decision Dossier v1
 
 阶段 17 新增非交互 `--mode dossier`，将阶段 16 的 `verified_complete` 执行审计重新验证后，输出
 事实、描述性观察、不能得出的结论、五个决策门和 `auto_execute=false` 的有限下一轮候选。真实
-阶段 16 证据包的建议为 `collect_replicates`，因为 baseline/capacity30 当前各只有 `n=1`；候选为
-两个 case 各 3 次，但尚未授权执行。完整 **659 项测试通过**。范围、命令和结果见
+阶段 16 证据包的建议为 `collect_replicates`，因为 baseline/capacity30 当时各只有 `n=1`；候选为
+两个 case 各 3 次，随后已在阶段 18 取得新确认并执行。完整 **659 项测试通过**。范围、命令和结果见
 [阶段 17 文档](docs/audited-decision-dossier.md)。
 
 ## 阶段 16：审计绑定的真实 HGS 小批验收

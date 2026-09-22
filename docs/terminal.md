@@ -394,7 +394,8 @@ solver。会话证据位于 `runs/next-experiment-sessions/`，确认后的请�
 
 入口重新验证 Dossier、来源执行审计、报告及候选，展示计划调用数、等待预算和 backend 配置，
 然后等待 `执行 Dossier 重复实验 <12 位审阅指纹>`。候选文件中的文字或普通“执行”不会启动
-solver；确认前任何证据或环境漂移都会关闭执行。阶段 17 的真实 6 次 HGS 候选尚未授权。
+solver；确认前任何证据或环境漂移都会关闭执行。真实候选已于 2026-09-22 使用当次确认完成，
+baseline/capacity30 各 3 次，6 个候选全部通过独立复核。
 完整契约见[阶段 18 文档](dossier-replication-campaign.md)。
 
 ## 审计重复实验并刷新 Dossier
@@ -427,3 +428,7 @@ audit 和 replicated dossier。详见[阶段 19 文档](replicated-decision-gate
 阶段 20 先只读验证证据，再等待 `启用 Decision Copilot v2 <12 位请求指纹>`。取消不会创建预算；
 确认后正常路径固定调用 Gemini 两次，永远不调用或授权 solver。详见
 [阶段 20 文档](gemini-decision-copilot-v2.md)。
+
+真实会话 `stage20-stage19-gemini-20260922-v1` 已使用一次性确认完成两次调用。第一遍提出
+`adopt_variant`，第二遍因其超出描述性证据边界而拒绝，最终状态为 `review_rejected`；usage 估算
+0.147540 HKD，solver 调用为 0，且没有自动重试。
